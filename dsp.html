@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1280, user-scalable=yes" />
+  <title>Gemini DSP - V56 (Dedup Fix + Schema Fix + LR NoDelay/NoPhase)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    /* --- GIỮ NGUYÊN GIAO DIỆN V54 --- */
+    :root {
+      --metal-dark: #1a1510; --metal-light: #443322;
+      --rust-accent: #d35400; --text-main: #e0d0b0; 
+      --text-dim: #776655; --indicator: #ffaa00;
+      --crt-green: #66ff66;
+
+      /* icon gear (nhỏ) để brand::before không bị trống */
+      --icon-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23ffaa00'%3E%3Cpath d='M37.8 2.6l1.8 7.1c1.7.5 3.2 1.2 4.7 2.1l6.6-3.2 6 10.4-5.8 4.6c.2.9.3 1.8.3 2.7s-.1 1.8-.3 2.7l5.8 4.6-6 10.4-6.6-3.2c-1.5.9-3.1 1.6-4.7 2.1l-1.8 7.1H26.2l-1.8-7.1c-1.7-.5-3.2-1.2-4.7-2.1l-6.6 3.2-6-10.4 5.8-4.6c-.2-.9-.3-1.8-.3-2.7s.1-1.8.3-2.7l-5.8-4.6 6-10.4 6.6 3.2c1.5-.9 3.1 1.6 4.7 2.1l1.8-7.1h11.6z'/%3E%3Cpath d='M32 42.5c-5.8 0-10.5-4.7-10.5-10.5S26.2 21.5 32 21.5 42.5 26.2 42.5 32 37.8 42.5 32 42.5zm0-6c2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5-4.5 2-4.5 4.5 2 4.5 4.5 4.5z'/%3E%3C/g%3E%3C/svg%3E");
+
+      --bg-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.1'/%3E%3C/svg%3E");
+    }
+    
+    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    
+    body { 
+      background-color: #110500;
+      background-image: var(--bg-noise), linear-gradient(to bottom, #2a1a10, #000000);
+      color: #aaa; margin: 0; height: 100dvh; width: 100%;
+      font-family: 'Special Elite', monospace; font-size: 14px; overflow: hidden; display: flex; flex-direction: column;
+    }
+    .app { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+    .sidebar { 
+      width: 90px; flex-shrink: 0; background-color: #1a100a; border-right: 3px solid #331100;
+      display: flex; flex-direction: column; align-items: center; padding: 20px 0; gap: 20px; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    .brand { border: 2px solid #442200; padding: 10px 5px; background: #2a150a; text-align: center; margin-bottom: 10px; }
+    .brand::before { content: ''; width: 24px; height: 24px; display: block; margin: 0 auto 5px auto; background-image: var(--icon-gear); background-size: contain; background-repeat: no-repeat; opacity: 0.7; filter: sepia(100%) hue-rotate(-30deg); animation: spin 10s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .brand div:last-child { font-size: 16px; color: var(--indicator); font-family: 'Black Ops One'; }
+    
+    .nav-btn { width: 60px; height: 60px; background: #221105; border: 2px solid #331100; border-radius: 50%; color: #775544; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Special Elite'; font-weight: bold; font-size: 11px; transition: all 0.1s; }
+    .nav-btn.active { color: var(--indicator); border-color: var(--rust-accent); background: #331100; box-shadow: 0 0 10px rgba(255, 100, 0, 0.2); }
+
+    .main { flex: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
+    .header { height: 65px; background: #1a100a; border-bottom: 3px solid #331100; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
+    .vu-container { display: flex; gap: 8px; }
+    .vu-meter { width: 40px; height: 25px; background: #000; border: 1px solid #442200; border-radius: 4px 4px 0 0; position: relative; overflow: hidden; }
+    .vu-needle { width: 30px; height: 2px; background: #d35400; position: absolute; bottom: 2px; left: 4px; transform-origin: 0% 50%; transform: rotate(-45deg); will-change: transform; }
+    .page-title { font-family: 'Black Ops One'; font-size: 18px; color: #a88; flex: 1; text-align: center; text-shadow: 1px 1px 0 #000; }
+    
+    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 15px; padding-bottom: 80px; background-color: #0d0502; }
+    .footer-status { height: 60px; background: #1a100a; border-top: 3px solid #331100; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0; width: 100%; z-index: 5; }
+    #saveStatusText { color: #886644; font-family: 'Black Ops One'; font-size: 14px; }
+    .save-btn { background: #331100; color: #ccc; font-family: 'Black Ops One'; font-size: 14px; padding: 10px 20px; border: 2px solid #552200; cursor: pointer; }
+    .save-btn.confirm { background: #d35400; color: #000; border-color: #ffaa00; }
+    @keyframes simple-shake { 0% { transform: translate(1px, 0); } 50% { transform: translate(-1px, 0); } 100% { transform: translate(0, 0); } }
+    .shaking { animation: simple-shake 0.1s infinite; }
+
+    .grid-lr { display: flex; gap: 15px; width: 100%; align-items: stretch; } 
+
+    /* CÂN ĐỐI LẠI CỘT TRÁI: 1 ô preset + 2 module vuông vắn */
+    .col-left { 
+      flex: 4; min-width: 300px;
+      display: grid;
+      grid-template-rows: auto 1fr 1fr;
+      gap: 15px;
+      align-items: stretch;
+    } 
+    .col-right { flex: 6; display: flex; flex-direction: column; }
+
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+
+    .module-card { background-color: #1e1612; border: 2px solid #332211; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; flex: 1; }
+    .module-head { background: #2a1e18; padding: 8px 15px; border-bottom: 2px solid #332211; font-family: 'Black Ops One'; font-size: 13px; display: flex; justify-content: space-between; color: #bca; }
+    .module-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; flex: 1; }
+    .sub-box { border: 1px solid #332211; background: #16100c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .sub-box + .sub-box { margin-top: 10px; }
+
+    /* preset box đồng bộ phong cách module */
+    .preset-box {
+      background-color: #1e1612;
+      border: 2px solid #332211;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+    }
+    .preset-head {
+      background: #2a1e18;
+      padding: 8px 15px;
+      border-bottom: 2px solid #332211;
+      font-family: 'Black Ops One';
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      color: #bca;
+    }
+    .preset-body { padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; }
+    .preset-hint { font-size: 11px; color: #776655; font-family: 'Special Elite'; }
+
+    .row-ctrl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+    .ctrl-label { color: #998877; font-size: 13px; width: 95px; font-weight: bold; display: flex; flex-direction: column; border-left: 3px solid #663300; padding-left: 5px; }
+    .range-info { font-size: 9px; color: #664433; font-family: monospace; }
+    .val-wrapper { display: flex; align-items: center; justify-content: flex-end; width: 85px; }
+    
+    select, input[type=text], input[type=password], input[type=number] { background: #110500; color: var(--indicator); border: 1px solid #442211; padding: 4px; width: 100%; font-family: 'Special Elite'; text-align: center; outline: none; }
+    .param-input { font-size: 13px !important; color: #bca !important; background: #221105 !important; margin-bottom: 5px; }
+    input.val-disp-input { font-family: 'Black Ops One'; font-size: 18px; color: var(--indicator); background: #000; border: 1px solid #331100; width: 100%; text-align: right; padding-right: 5px; }
+    .unit-label { font-size: 10px; color: #665544; font-weight: bold; margin-left: 3px; font-family: sans-serif; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    .slider-group { flex: 1; padding: 0 10px; display: flex; align-items: center; touch-action: none; }
+    input[type=range].h-slider { -webkit-appearance: none; width: 100%; height: 20px; background: transparent; }
+    input[type=range].h-slider::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #000; border: 1px solid #442211; border-radius: 3px; }
+    input[type=range].h-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 14px; background: #664422; border: 1px solid #000; margin-top: -10px; cursor: pointer; }
+
+    /* SWITCH TOGGLE CSS */
+    .toggle-row {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        background: #110500; border: 1px solid #442200; padding: 8px 5px;
+        margin-bottom: 15px; border-radius: 4px;
+        box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+    }
+    .mode-label {
+        font-family: 'Black Ops One'; font-size: 12px; color: #443322;
+        transition: all 0.3s; flex: 1; text-align: center;
+        text-shadow: none;
+    }
+    .mode-label.active {
+        color: var(--indicator);
+        text-shadow: 0 0 8px var(--rust-accent);
+    }
+    .switch { position: relative; display: inline-block; width: 50px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { 
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; 
+        background-color: #221100; transition: .4s; border: 2px solid #553322; border-radius: 4px; 
+    }
+    .slider:before { 
+        position: absolute; content: ""; height: 16px; width: 20px; left: 2px; bottom: 2px; 
+        background-color: #886644; transition: .4s; border-radius: 2px; 
+        box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    input:checked + .slider { background-color: #331100; border-color: var(--rust-accent); }
+    input:checked + .slider:before { 
+        transform: translateX(22px); 
+        background-color: var(--indicator);
+        box-shadow: 0 0 5px var(--indicator);
+    }
+
+    .std-checkbox { -webkit-appearance: none; width: 30px; height: 16px; background: #331100; border: 1px solid #552200; border-radius: 8px; cursor: pointer; position: relative; }
+    .std-checkbox:checked { background: #d35400; }
+    .std-checkbox::after { content: ''; width: 12px; height: 12px; background: #ccc; border-radius: 50%; position: absolute; top: 1px; left: 1px; transition: transform 0.2s; }
+    .std-checkbox:checked::after { transform: translateX(14px); background: #fff; }
+
+    .eq-grid { display: grid; gap: 10px; flex: 1; height: 100%; }
+    .eq-strip { display: flex; flex-direction: column; align-items: center; justify-content: space-between; border: 1px solid #332211; background: #16100c; padding: 10px 2px; flex: 1; }
+    .v-fader-track { width: 12px; flex: 1; min-height: 150px; background: #000; border: 1px solid #332211; position: relative; margin: 10px 0; touch-action: none; }
+    .v-fader-cap { position: absolute; left: 50%; width: 36px; height: 24px; background: #553322; border: 1px solid #000; border-radius: 2px; transform: translate(-50%, 50%); z-index: 5; background-image: linear-gradient(to bottom, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
+    .cap-sub .v-fader-cap { background-color: #661111; border-color: #992222; } .cap-mic .v-fader-cap { background-color: #333; border-color: #555; }
+
+    .crt-monitor { background: #000; border: 2px solid #333; border-radius: 4px; font-family: 'VT323', monospace; padding: 10px; color: var(--crt-green); flex: 1; overflow: hidden; }
+
+    @media (max-width: 1024px) {
+      .content { padding: 10px; padding-bottom: 75px; } .grid-lr { flex-direction: column; display: block; }
+      .col-left, .col-right { width: 100%; min-width: 0; display: flex; flex-direction: column; }
+      .sidebar { width: 65px; } .nav-btn { width: 50px; height: 50px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand"><div>DDL</div><div>Sound</div></div>
+    <button class="nav-btn active" onclick="setTab('left')" id="btn-left">L</button>
+    <button class="nav-btn" onclick="setTab('right')" id="btn-right">R</button>
+    <button class="nav-btn" onclick="setTab('sub')" id="btn-sub">SUB</button>
+    <button class="nav-btn" onclick="setTab('mic')" id="btn-mic">MIC</button>
+    <div style="flex:1"></div>
+    <button class="nav-btn" onclick="setTab('info')" id="btn-info">LOG</button>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <div class="vu-container">
+          <div class="vu-meter"><div class="vu-needle" id="vuL"></div></div>
+          <div class="vu-meter"><div class="vu-needle" id="vuR"></div></div>
+      </div>
+      <div class="page-title" id="pageTitle">LEFT CH</div>
+    </div>
+    <div class="content" id="content"></div>
+    <div class="footer-status">
+        <div id="saveStatusText">SYSTEM READY</div>
+        <button class="save-btn" onclick="handleSave(this)">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- V56: FIX DUP SEND + FIX EQ STEP + FIX PATCH ORDER + FIX SCHEMA + LR NO DELAY/PHASE UI ---
+  const STORAGE_KEY = 'geminiGrimoireV56';
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const API_URL = isLocal ? "http://192.168.1.15" : "";
+  const POST_PATH = "/data_in_esp";
+
+  // VU demo
+  setInterval(() => {
+    const vuL = document.getElementById('vuL');
+    const vuR = document.getElementById('vuR');
+    if (vuL && vuR) {
+      const deg = -45 + Math.random() * 20;
+      vuL.style.transform = `rotate(${deg}deg)`;
+      vuR.style.transform = `rotate(${deg + 5}deg)`;
+    }
+  }, 200);
+
+  // FILTER TYPES: value gửi xuống ESP (đúng chuỗi ESP hiểu), label để hiển thị
+const FILTER_TYPES = [
+  { v: "bypass",      label: "bypass" },
+  { v: "lowpass",     label: "lowpass" },
+  { v: "highpass",    label: "highpass" },
+  { v: "bandpass",    label: "bandpass" },
+  { v: "notch",       label: "notch" },
+  { v: "peak",        label: "peak" },
+  { v: "lowshelf",    label: "lowshelf" },
+  { v: "highshelf",   label: "highshelf" },
+  { v: "one-pole LP", label: "one-pole LP" },
+  { v: "one-pole HP", label: "one-pole HP" },
+];
+
+// Chuẩn hoá mọi kiểu nhập (HS/LP/LP1, viết hoa/thường...) về đúng chuỗi ESP cần
+function normalizeType(t) {
+  if (!t) return "peak";
+
+  const s = String(t).trim();
+  const low = s.toLowerCase();
+
+  // nếu đã là đúng format ESP (giữ nguyên hoa/thường của one-pole)
+  if (s === "one-pole LP" || s === "one-pole HP") return s;
+
+  const map = {
+    // bypass / peak / notch / bp
+    "bypass": "bypass",
+    "peak": "peak",
+    "peaking": "peak",
+    "notch": "notch",
+    "bp": "bandpass",
+    "bandpass": "bandpass",
+
+    // lp / hp
+    "lp": "lowpass",
+    "lowpass": "lowpass",
+    "hp": "highpass",
+    "highpass": "highpass",
+
+    // shelf
+    "ls": "lowshelf",
+    "lowshelf": "lowshelf",
+    "hs": "highshelf",
+    "highshelf": "highshelf",
+
+    // one-pole
+    "lp1": "one-pole LP",
+    "1-lp": "one-pole LP",
+    "one-pole lp": "one-pole LP",
+    "one pole lp": "one-pole LP",
+
+    "hp1": "one-pole HP",
+    "1-hp": "one-pole HP",
+    "one-pole hp": "one-pole HP",
+    "one pole hp": "one-pole HP",
+  };
+
+  // fallback: nếu user/old data là "LS/HS/PEAK/LP/..." thì cũng bắt được
+  if (map[low]) return map[low];
+  if (map[s]) return map[s];
+
+  // nếu không nhận ra -> về peak cho an toàn
+  return "peak";
+}
+
+
+  const GLOBAL_PRESETS = {
+    ch: {
+      "flat":   { name: "FACTORY RESET (Flat)", data: { bands: Array(6).fill().map((_,i)=>({t:i===0?"LS":i===5?"HS":"PEAK", f:[60,200,500,1000,4000,12000][i], q:1.0, g:0})), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 } } },
+      "bass":   { name: "HEAVY MACHINERY (Bass)", data: { bands: [{f:60,g:8,q:1,t:"LS"},{f:120,g:4,q:1,t:"PEAK"},{f:500,g:-2,q:1,t:"PEAK"},{f:1000,g:0,q:1,t:"PEAK"},{f:4000,g:2,q:1,t:"PEAK"},{f:12000,g:5,q:1,t:"HS"}], loudness: { on: true, thresh: -30, maxGain: 12.0, freq: 120 } } },
+      "vocal":  { name: "PA SYSTEM (Vocal)", data: { bands: [{f:80,g:-3,q:1,t:"LS"},{f:250,g:-2,q:1.5,t:"PEAK"},{f:1000,g:3,q:1,t:"PEAK"},{f:3000,g:4,q:1,t:"PEAK"},{f:8000,g:2,q:1,t:"PEAK"},{f:12000,g:0,q:1,t:"HS"}], loudness: { on: true, thresh: -45, maxGain: 4.0, freq: 80 } } },
+      "cinema": { name: "TURBINE RUMBLE (Cinema)", data: { bands: [{f:50,g:6,q:1,t:"LS"},{f:300,g:-4,q:2,t:"PEAK"},{f:1000,g:-2,q:1,t:"PEAK"},{f:4000,g:3,q:1,t:"PEAK"},{f:10000,g:6,q:1,t:"HS"},{f:15000,g:2,q:1,t:"PEAK"}], loudness: { on: true, thresh: -35, maxGain: 8.0, freq: 100 } } }
+    },
+    sub: {
+      "off":   { name: "ENGINE OFF (Mute)", data: { freq: 80, vol: -60 } },
+      "music": { name: "HYDRAULIC PUMP (Music)", data: { freq: 90, vol: -5 } },
+      "movie": { name: "PILE DRIVER (Movie)", data: { freq: 60, vol: 0 } },
+      "punch": { name: "PISTON STRIKE (Punchy)", data: { freq: 120, vol: 2 } }
+    },
+    mic: {
+      "speech":  { name: "INTERCOM (Speech)", data: { reverb: { gain: 10, pre: 0, decay: 10, drywet: 10, room: 30, damp: 50 }, echo: { gain: 0, repeat: 0, drywet: 0, delay: 0 }, feedback: { q: 5.0, enable: true } } },
+      "karaoke": { name: "HANGAR ECHO (Karaoke)", data: { reverb: { gain: 45, pre: 20, decay: 50, drywet: 40, room: 70, damp: 40 }, echo: { gain: 35, repeat: 45, drywet: 35, delay: 230 }, feedback: { q: 5.0, enable: true } } },
+      "concert": { name: "WAREHOUSE RAVE (Pro)", data: { reverb: { gain: 60, pre: 50, decay: 80, drywet: 50, room: 90, damp: 20 }, echo: { gain: 20, repeat: 30, drywet: 20, delay: 180 }, feedback: { q: 5.0, enable: true } } }
+    }
+  };
+
+  const defaultData = {
+    left:  { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
+    right: { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
+    sub:   { sub1: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true }, sub2: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true } },
+    mic:   { mic1: { tones: [0,0,0], vol: 80 }, mic2: { tones: [0,0,0], vol: 80 },
+             reverb: { ...GLOBAL_PRESETS.mic.karaoke.data.reverb },
+             echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
+             feedback: { q: 5.0, enable: true, thresh: 50, cut: 50, sens: 50, shift: 5, shiftEnable: true } },
+    wifi:  { ssid: '', pass: '' },
+    info:  ""
+  };
+
+  function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  // Load localStorage + tự vá thiếu field
+  let appData = (() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return v ? v : deepClone(defaultData);
+    } catch {
+      return deepClone(defaultData);
+    }
+  })();
+
+  // ensure structure
+  if (!appData.left) appData.left = deepClone(defaultData.left);
+  if (!appData.right) appData.right = deepClone(defaultData.right);
+
+  if (!appData.sub) appData.sub = deepClone(defaultData.sub);
+  if (!appData.sub.sub1) appData.sub.sub1 = deepClone(defaultData.sub.sub1);
+  if (!appData.sub.sub2) appData.sub.sub2 = deepClone(defaultData.sub.sub2);
+
+  if (!appData.mic) appData.mic = deepClone(defaultData.mic);
+  if (!appData.mic.mic1) appData.mic.mic1 = deepClone(defaultData.mic.mic1);
+  if (!appData.mic.mic2) appData.mic.mic2 = deepClone(defaultData.mic.mic2);
+  if (!Array.isArray(appData.mic.mic1.tones)) appData.mic.mic1.tones = [0,0,0];
+  if (!Array.isArray(appData.mic.mic2.tones)) appData.mic.mic2.tones = [0,0,0];
+  if (!appData.mic.reverb) appData.mic.reverb = deepClone(defaultData.mic.reverb);
+  if (!appData.mic.echo) appData.mic.echo = deepClone(defaultData.mic.echo);
+  if (!appData.mic.feedback) appData.mic.feedback = deepClone(defaultData.mic.feedback);
+  if (appData.mic.feedback.thresh === undefined) appData.mic.feedback.thresh = defaultData.mic.feedback.thresh;
+  if (appData.mic.feedback.cut === undefined) appData.mic.feedback.cut = defaultData.mic.feedback.cut;
+  if (appData.mic.feedback.sens === undefined) appData.mic.feedback.sens = defaultData.mic.feedback.sens;
+  if (appData.mic.feedback.shift === undefined) appData.mic.feedback.shift = defaultData.mic.feedback.shift;
+  if (appData.mic.feedback.shiftEnable === undefined) appData.mic.feedback.shiftEnable = defaultData.mic.feedback.shiftEnable;
+
+  if (!appData.wifi) appData.wifi = deepClone(defaultData.wifi);
+
+  // --- SCHEMA FIX: đảm bảo bands/loudness/vol luôn đúng kiểu để UI không trắng ---
+  function ensureChannel(key) {
+    if (!appData[key] || typeof appData[key] !== "object") appData[key] = deepClone(defaultData[key]);
+
+    // loudness
+    if (!appData[key].loudness || typeof appData[key].loudness !== "object") appData[key].loudness = deepClone(defaultData[key].loudness);
+    appData[key].loudness.on = !!appData[key].loudness.on;
+    appData[key].loudness.thresh = Number(appData[key].loudness.thresh ?? defaultData[key].loudness.thresh);
+    appData[key].loudness.maxGain = Number(appData[key].loudness.maxGain ?? defaultData[key].loudness.maxGain);
+    appData[key].loudness.freq = Number(appData[key].loudness.freq ?? defaultData[key].loudness.freq);
+
+    // gain
+    appData[key].vol = Number(appData[key].vol ?? defaultData[key].vol);
+
+    // LR: XOÁ UI DELAY/PHASE -> khoá giá trị về 0/false để tránh dính dữ liệu cũ từ localStorage
+    appData[key].delay = 0;
+    appData[key].phase = false;
+
+    // bands
+    if (!Array.isArray(appData[key].bands) || appData[key].bands.length !== 6) {
+      appData[key].bands = deepClone(defaultData[key].bands);
+    }
+    appData[key].bands = appData[key].bands.map((b, i) => {
+      const base = deepClone(defaultData[key].bands[i]);
+      const merged = { ...base, ...(b || {}) };
+      merged.t = normalizeType(merged.t);
+      merged.f = Number(merged.f ?? base.f);
+      merged.g = Number(merged.g ?? base.g);
+      merged.q = Number(merged.q ?? base.q);
+      return merged;
+    });
+  }
+  ensureChannel("left");
+  ensureChannel("right");
+
+  // ----------------------------
+  // BUILDERS
+  // ----------------------------
+  const BUILDERS = {
+    gain() {
+      return {
+        out: { L: Number(appData.left.vol), R: Number(appData.right.vol) },
+        mic: { M1: Number(appData.mic.mic1.vol), M2: Number(appData.mic.mic2.vol) },
+        sub: { S1: Number(appData.sub.sub1.vol), S2: Number(appData.sub.sub2.vol) }
+      };
+    },
+    delay() {
+      // LR đã bỏ UI -> out luôn 0 để không dính delay cũ
+      return {
+        out: { L: 0, R: 0 },
+        sub: { S1: Number(appData.sub.sub1.delay), S2: Number(appData.sub.sub2.delay) }
+      };
+    },
+    phase() {
+      // LR đã bỏ UI -> out luôn 0 để không dính phase cũ
+      return {
+        out: { L: 0, R: 0 },
+        sub: { S1: appData.sub.sub1.phase ? 1 : 0, S2: appData.sub.sub2.phase ? 1 : 0 }
+      };
+    },
+    loudness() {
+      return {
+        L: { on: appData.left.loudness.on ? 1 : 0, thresh: Number(appData.left.loudness.thresh), maxGain: Number(appData.left.loudness.maxGain), freq: Number(appData.left.loudness.freq) },
+        R: { on: appData.right.loudness.on ? 1 : 0, thresh: Number(appData.right.loudness.thresh), maxGain: Number(appData.right.loudness.maxGain), freq: Number(appData.right.loudness.freq) }
+      };
+    },
+    sub() {
+      return {
+        xover: { S1: Number(appData.sub.sub1.freq), S2: Number(appData.sub.sub2.freq) },
+        mono:  { S1: appData.sub.sub1.isMono ? 1 : 0, S2: appData.sub.sub2.isMono ? 1 : 0 }
+      };
+    },
+    micTone() {
+      const t1 = appData.mic.mic1.tones || [0,0,0];
+      const t2 = appData.mic.mic2.tones || [0,0,0];
+      return {
+        mic1: { lo: Number(t1[0] || 0), mi: Number(t1[1] || 0), hi: Number(t1[2] || 0) },
+        mic2: { lo: Number(t2[0] || 0), mi: Number(t2[1] || 0), hi: Number(t2[2] || 0) }
+      };
+    },
+    reverb() { return { ...appData.mic.reverb }; },
+    echo() { return { ...appData.mic.echo }; },
+    feedback() { return { ...appData.mic.feedback }; },
+    wifi() { return { ...appData.wifi }; },
+
+    // full sync
+    eqFull() { return { L: appData.left.bands, R: appData.right.bands }; }
+  };
+
+  // ----------------------------
+  // TX JSON BATCH (debounce + seq) + FIX DUP SEND
+  // ----------------------------
+  const Tx = (() => {
+    const VER = 1;
+    let seq = 0;
+
+    const pending = new Set();
+    let eqPending = null;
+
+    let tLive = null;
+    let tFinal = null;
+
+    // tăng để tap/click thường không bắn live trước final
+    const LIVE_MS = 180;
+
+    // chống gửi trùng
+    let lastSig = "";
+    let lastSigTs = 0;
+    const DEDUP_WINDOW_MS = 1200;
+
+    function nowTs() { return Date.now(); }
+
+    function postJSON(payload) {
+      const url = `${API_URL}${POST_PATH}`;
+      console.log("[TX JSON]", payload);
+
+      return fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text().catch(() => "");
+      });
+    }
+
+    function flush() {
+      tLive = null;
+      tFinal = null;
+
+      const patches = [];
+
+      // EQ delta
+      if (eqPending) {
+        patches.push({ group: "eq", data: eqPending });
+        eqPending = null;
+      }
+
+      // FIX: ép thứ tự group cố định (đỡ ESP parse lệch do Set)
+      const ORDER = ["gain","delay","phase","loudness","sub","micTone","reverb","echo","feedback","wifi"];
+      for (const g of ORDER) {
+        if (!pending.has(g)) continue;
+        const b = BUILDERS[g];
+        if (typeof b === "function") patches.push({ group: g, data: b() });
+      }
+      pending.clear();
+
+      if (!patches.length) return;
+
+      // FIX DUP: signature + window
+      const sig = JSON.stringify(patches);
+      const tsNow = nowTs();
+      if (sig === lastSig && (tsNow - lastSigTs) <= DEDUP_WINDOW_MS) {
+        const st = document.getElementById("saveStatusText");
+        if (st) {
+          st.innerText = `SKIP DUP (${Math.round(tsNow - lastSigTs)}ms)`;
+          st.style.color = "#aa8844";
+        }
+        return;
+      }
+      lastSig = sig;
+      lastSigTs = tsNow;
+
+      const payload = { ver: VER, seq: ++seq, ts: tsNow, type: "batch", patches };
+
+      const st = document.getElementById("saveStatusText");
+      if (st) {
+        st.innerText = `TX seq=${payload.seq} patches=${patches.length}`;
+        st.style.color = "#886644";
+      }
+
+      postJSON(payload).then(() => {
+        const st2 = document.getElementById("saveStatusText");
+        if (st2) {
+          st2.innerText = `TX OK (seq=${payload.seq})`;
+          st2.style.color = "#00e676";
+          setTimeout(() => {
+            if (st2.innerText.startsWith("TX OK")) {
+              st2.innerText = "READY.";
+              st2.style.color = "#777";
+            }
+          }, 700);
+        }
+      }).catch(err => {
+        console.warn(err);
+        const st2 = document.getElementById("saveStatusText");
+        if (st2) {
+          st2.innerText = `TX FAIL: ${String(err.message || err)}`;
+          st2.style.color = "#ff5252";
+        }
+      });
+    }
+
+    function scheduleFinal() {
+      if (tLive) { clearTimeout(tLive); tLive = null; }
+      if (tFinal) clearTimeout(tFinal);
+      tFinal = setTimeout(flush, 0);
+    }
+
+    function scheduleLive() {
+      if (tLive || tFinal) return;
+      tLive = setTimeout(flush, LIVE_MS);
+    }
+
+    function mark(group, mode = "live") {
+      pending.add(group);
+      if (mode === "final") scheduleFinal();
+      else scheduleLive();
+    }
+
+    function markEq(side, idx, band, mode = "live") {
+      eqPending = {
+        side,
+        idx,
+        band: {
+          t: normalizeType(band.t),
+          f: Number(band.f),
+          g: Number(band.g),
+          q: Number(band.q)
+        }
+      };
+      if (mode === "final") scheduleFinal();
+      else scheduleLive();
+    }
+
+    function syncAll() {
+      const patches = [
+        { group: "gain", data: BUILDERS.gain() },
+        { group: "delay", data: BUILDERS.delay() },
+        { group: "phase", data: BUILDERS.phase() },
+        { group: "loudness", data: BUILDERS.loudness() },
+        { group: "sub", data: BUILDERS.sub() },
+        { group: "micTone", data: BUILDERS.micTone() },
+        { group: "reverb", data: BUILDERS.reverb() },
+        { group: "echo", data: BUILDERS.echo() },
+        { group: "feedback", data: BUILDERS.feedback() },
+        { group: "eq", data: BUILDERS.eqFull() },
+      ];
+
+      lastSig = "";
+      lastSigTs = 0;
+
+      const payload = { ver: VER, seq: ++seq, ts: nowTs(), type: "batch", patches };
+      postJSON(payload).catch(console.warn);
+    }
+
+    function sendSaveAll() {
+      lastSig = "";
+      lastSigTs = 0;
+
+      const payload = { ver: VER, seq: ++seq, ts: nowTs(), type: "batch", patches: [{ group: "save", data: { cmd: "SAVE_ALL" } }] };
+      postJSON(payload).catch(console.warn);
+    }
+
+    return { mark, markEq, syncAll, sendSaveAll };
+  })();
+
+  // ----------------------------
+  // APP STATE / UI ROOT
+  // ----------------------------
+  let currentTab = 'left';
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+
+  function markDirty() {
+    const el = document.getElementById('saveStatusText');
+    if (el) { el.innerText = "UNSAVED CHANGES..."; el.style.color = "#ff9800"; }
+  }
+
+  const content = document.getElementById('content');
+  const pageTitle = document.getElementById('pageTitle');
+  const navBtns = document.querySelectorAll('.nav-btn');
+
+  function setTab(tab) {
+    currentTab = tab;
+    navBtns.forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('btn-' + tab);
+    if (btn) btn.classList.add('active');
+
+    pageTitle.innerText = {
+      left: "CHANNEL LEFT",
+      right: "CHANNEL RIGHT",
+      sub: "SUBWOOFER",
+      mic: "MICROPHONE / FX",
+      info: "SYSTEM LOGS"
+    }[tab];
+
+    render();
+  }
+
+  function createPresetUI(sectionType, targetKey) {
+    const wrapper = document.createElement('div');
+    wrapper.className = "preset-box";
+
+    const head = document.createElement('div');
+    head.className = "preset-head";
+    head.innerHTML = `<div>PRESETS</div><div style="font-size:10px; opacity:0.5; font-weight:normal;">LOAD PROFILE</div>`;
+
+    const body = document.createElement('div');
+    body.className = "preset-body";
+
+    const hint = document.createElement('div');
+    hint.className = "preset-hint";
+    hint.innerText = "Chọn preset để nạp nhanh thông số.";
+
+    const select = document.createElement('select');
+    const defOpt = document.createElement('option');
+    defOpt.text = "-- Select Preset --";
+    select.add(defOpt);
+
+    const list = GLOBAL_PRESETS[sectionType];
+    for (const key in list) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.text = list[key].name;
+      select.add(opt);
+    }
+
+    select.onchange = (e) => {
+      const key = e.target.value;
+      if (list[key]) {
+        applyPreset(sectionType, targetKey, list[key].data);
+        select.selectedIndex = 0;
+      }
+    };
+
+    body.appendChild(hint);
+    body.appendChild(select);
+    wrapper.appendChild(head);
+    wrapper.appendChild(body);
+    return wrapper;
+  }
+
+  function applyPreset(type, targetKey, data) {
+    if (type === 'ch') {
+      const target = appData[targetKey];
+      if (data.bands) target.bands = deepClone(data.bands).map(b => ({...b, t: normalizeType(b.t)}));
+      if (data.loudness) target.loudness = { ...target.loudness, ...data.loudness };
+    } else if (type === 'sub') {
+      const target = appData.sub[targetKey];
+      if (data.freq !== undefined) target.freq = Number(data.freq);
+      if (data.vol !== undefined) target.vol = Number(data.vol);
+    } else if (type === 'mic') {
+      if (data.reverb) appData.mic.reverb = { ...data.reverb };
+      if (data.echo) appData.mic.echo = { ...data.echo };
+      if (data.feedback) appData.mic.feedback = { ...data.feedback };
+    }
+    markDirty();
+    render();
+    Tx.syncAll();
+  }
+
+  function render() {
+    try {
+      content.innerHTML = '';
+      if (currentTab === 'left' || currentTab === 'right') renderLR(currentTab);
+      else if (currentTab === 'sub') renderSub();
+      else if (currentTab === 'mic') renderMic();
+      else renderInfo();
+    } catch (e) {
+      console.error(e);
+      const st = document.getElementById("saveStatusText");
+      if (st) { st.innerText = "RENDER ERROR: " + (e?.message || e); st.style.color = "#ff5252"; }
+    }
+  }
+
+  function handleSave(button) {
+    save();
+    Tx.sendSaveAll();
+
+    const statusTextEl = document.getElementById('saveStatusText');
+    button.classList.add('confirm');
+    button.innerText = 'SAVED!';
+    statusTextEl.innerText = "SYNCED OK.";
+    statusTextEl.style.color = "#00e676";
+
+    setTimeout(() => {
+      button.classList.remove('confirm');
+      button.innerText = 'SAVE';
+      statusTextEl.innerText = "READY.";
+      statusTextEl.style.color = "#777";
+    }, 1500);
+  }
+
+  function renderLR(ch) {
+    const data = appData[ch];
+    const side = (ch === 'left') ? 'L' : 'R';
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-lr';
+
+    const colLeft = document.createElement('div');
+    colLeft.className = 'col-left';
+    colLeft.appendChild(createPresetUI('ch', ch));
+
+    // Loudness
+    const loudRack = createModule('DYNAMIC LOUDNESS', 'BASS COMPENSATION');
+
+    const enRow = document.createElement('div');
+    enRow.className = 'row-ctrl';
+    enRow.innerHTML = `<div class="ctrl-label">ENABLE</div>`;
+    const en = document.createElement('input');
+    en.type = 'checkbox';
+    en.className = 'std-checkbox';
+    en.checked = !!data.loudness.on;
+    en.onchange = () => {
+      data.loudness.on = en.checked;
+      markDirty();
+      Tx.mark('loudness', 'final');
+    };
+    enRow.appendChild(en);
+    loudRack.body.appendChild(enRow);
+
+    loudRack.body.appendChild(createSlider('THRESH', data.loudness.thresh, -60, -10, 1, 'dB',
+      v => { data.loudness.thresh = v; markDirty(); },
+      () => Tx.mark('loudness', 'live'),
+      () => Tx.mark('loudness', 'final')
+    ));
+
+    loudRack.body.appendChild(createSlider('CUTOFF', data.loudness.freq, 40, 400, 5, 'Hz',
+      v => { data.loudness.freq = v; markDirty(); },
+      () => Tx.mark('loudness', 'live'),
+      () => Tx.mark('loudness', 'final')
+    ));
+
+    loudRack.body.appendChild(createSlider('BOOST', data.loudness.maxGain, 0, 15, 0.5, 'dB',
+      v => { data.loudness.maxGain = v; markDirty(); },
+      () => Tx.mark('loudness', 'live'),
+      () => Tx.mark('loudness', 'final')
+    ));
+
+    colLeft.appendChild(loudRack.el);
+
+    // Master Output (đã XOÁ DELAY slider + PHASE switch theo yêu cầu)
+    const masterRack = createModule('MASTER OUTPUT', 'FINAL STAGE');
+
+    // Chỉ giữ GAIN
+    masterRack.body.appendChild(createSlider('GAIN', data.vol, -60, 6, 0.5, 'dB',
+      v => { data.vol = v; markDirty(); },
+      () => Tx.mark('gain', 'live'),
+      () => Tx.mark('gain', 'final')
+    ));
+
+    colLeft.appendChild(masterRack.el);
+    grid.appendChild(colLeft);
+
+    // EQ
+    const colRight = document.createElement('div');
+    colRight.className = 'col-right';
+
+    const eqRack = createModule('PARAMETRIC EQ', '6-BAND EQUALIZER', 'module-fill');
+    const eqGrid = document.createElement('div');
+    eqGrid.className = 'eq-grid';
+    eqGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+
+    // bảo vệ nếu localStorage lỗi lạ
+    if (!Array.isArray(data.bands) || data.bands.length !== 6) {
+      data.bands = deepClone(defaultData[ch].bands).map(b => ({...b, t: normalizeType(b.t)}));
+    }
+
+    data.bands.forEach((band, i) => {
+      band.t = normalizeType(band.t);
+      eqGrid.appendChild(createComplexStrip(
+        band, i,
+        () => { markDirty(); },
+        (isFinal) => Tx.markEq(side, i, band, isFinal ? "final" : "live")
+      ));
+    });
+
+    eqRack.body.appendChild(eqGrid);
+    colRight.appendChild(eqRack.el);
+    grid.appendChild(colRight);
+
+    content.appendChild(grid);
+  }
+
+  function renderMic() {
+    const grid = document.createElement('div');
+    grid.className = 'grid-2col';
+
+    const colFx = document.createElement('div');
+    colFx.style.display = 'flex';
+    colFx.style.flexDirection = 'column';
+    colFx.style.gap = '20px';
+
+    colFx.appendChild(createPresetUI('mic', 'mic'));
+
+    // Anti-feedback
+    const controlRack = createModule('ANTI-FEEDBACK', 'SUPPRESSOR');
+    const fbData = appData.mic.feedback;
+
+    const fbBox1 = document.createElement('div');
+    fbBox1.className = 'sub-box';
+
+    const fbRow = document.createElement('div');
+    fbRow.className = 'row-ctrl';
+    fbRow.innerHTML = `<div class="ctrl-label">ENABLE</div>`;
+    const fbEn = document.createElement('input');
+    fbEn.type = 'checkbox';
+    fbEn.className = 'std-checkbox';
+    fbEn.checked = !!fbData.enable;
+    fbEn.onchange = () => {
+      fbData.enable = fbEn.checked;
+      markDirty();
+      Tx.mark('feedback', 'final');
+    };
+    fbRow.appendChild(fbEn);
+    fbBox1.appendChild(fbRow);
+
+    fbBox1.appendChild(createSlider('THRESH', fbData.thresh ?? 50, 0, 100, 1, '%',
+      v => { fbData.thresh = v; markDirty(); },
+      () => Tx.mark('feedback', 'live'),
+      () => Tx.mark('feedback', 'final')
+    ));
+    fbBox1.appendChild(createSlider('CUT', fbData.cut ?? 50, 0, 100, 1, '%',
+      v => { fbData.cut = v; markDirty(); },
+      () => Tx.mark('feedback', 'live'),
+      () => Tx.mark('feedback', 'final')
+    ));
+    fbBox1.appendChild(createSlider('SENS', fbData.sens ?? 50, 0, 100, 1, '%',
+      v => { fbData.sens = v; markDirty(); },
+      () => Tx.mark('feedback', 'live'),
+      () => Tx.mark('feedback', 'final')
+    ));
+    controlRack.body.appendChild(fbBox1);
+
+    const fbBox2 = document.createElement('div');
+    fbBox2.className = 'sub-box';
+
+    const shiftRow = document.createElement('div');
+    shiftRow.className = 'row-ctrl';
+    shiftRow.innerHTML = `<div class="ctrl-label">SHIFT EN</div>`;
+    const shiftEn = document.createElement('input');
+    shiftEn.type = 'checkbox';
+    shiftEn.className = 'std-checkbox';
+    shiftEn.checked = !!fbData.shiftEnable;
+    shiftEn.onchange = () => {
+      fbData.shiftEnable = shiftEn.checked;
+      markDirty();
+      Tx.mark('feedback', 'final');
+    };
+    shiftRow.appendChild(shiftEn);
+    fbBox2.appendChild(shiftRow);
+
+    fbBox2.appendChild(createSlider('SHIFT', fbData.shift ?? 5, 0, 20, 0.5, 'Hz',
+      v => { fbData.shift = v; markDirty(); },
+      () => Tx.mark('feedback', 'live'),
+      () => Tx.mark('feedback', 'final')
+    ));
+    controlRack.body.appendChild(fbBox2);
+    colFx.appendChild(controlRack.el);
+
+    // Reverb
+    const rev = appData.mic.reverb;
+    const fxReverb = createModule('REVERB', 'SPACE FX');
+    fxReverb.body.appendChild(createSlider('LEVEL', rev.gain, 0, 100, 1, '%',
+      v => { rev.gain = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    fxReverb.body.appendChild(createSlider('DECAY', rev.decay, 0, 100, 1, '%',
+      v => { rev.decay = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    fxReverb.body.appendChild(createSlider('PRE', rev.pre, 0, 200, 1, 'ms',
+      v => { rev.pre = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    fxReverb.body.appendChild(createSlider('MIX', rev.drywet, 0, 100, 1, '%',
+      v => { rev.drywet = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    fxReverb.body.appendChild(createSlider('SIZE', rev.room, 0, 100, 1, '%',
+      v => { rev.room = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    fxReverb.body.appendChild(createSlider('DAMP', rev.damp, 0, 100, 1, '%',
+      v => { rev.damp = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
+    ));
+    colFx.appendChild(fxReverb.el);
+
+    // Echo
+    const echo = appData.mic.echo;
+    const fxEcho = createModule('ECHO', 'DELAY FX');
+    fxEcho.body.appendChild(createSlider('LEVEL', echo.gain, 0, 100, 1, '%',
+      v => { echo.gain = v; markDirty(); }, () => Tx.mark('echo', 'live'), () => Tx.mark('echo', 'final')
+    ));
+    fxEcho.body.appendChild(createSlider('TIME', echo.delay, 0, 1000, 10, 'ms',
+      v => { echo.delay = v; markDirty(); }, () => Tx.mark('echo', 'live'), () => Tx.mark('echo', 'final')
+    ));
+    fxEcho.body.appendChild(createSlider('REPEAT', echo.repeat, 0, 100, 1, '%',
+      v => { echo.repeat = v; markDirty(); }, () => Tx.mark('echo', 'live'), () => Tx.mark('echo', 'final')
+    ));
+    fxEcho.body.appendChild(createSlider('MIX', echo.drywet, 0, 100, 1, '%',
+      v => { echo.drywet = v; markDirty(); }, () => Tx.mark('echo', 'live'), () => Tx.mark('echo', 'final')
+    ));
+    colFx.appendChild(fxEcho.el);
+
+    grid.appendChild(colFx);
+
+    // MIC1/MIC2
+    const colEq = document.createElement('div');
+    colEq.style.display = 'flex';
+    colEq.style.flexDirection = 'column';
+    colEq.style.gap = '20px';
+    colEq.style.height = '100%';
+
+    [1, 2].forEach(n => {
+      const m = createModule(`MIC INPUT ${n}`, `PREAMP CH${n}`, 'module-fill');
+      const micObj = appData.mic[`mic${n}`];
+
+      const sendMicToneLive  = () => Tx.mark('micTone', 'live');
+      const sendMicToneFinal = () => Tx.mark('micTone', 'final');
+
+      const sendMicGainLive  = () => Tx.mark('gain', 'live');
+      const sendMicGainFinal = () => Tx.mark('gain', 'final');
+
+      const r = document.createElement('div');
+      r.className = 'eq-grid';
+      r.style.gridTemplateColumns = 'repeat(4, 1fr)';
+
+      r.appendChild(createSimpleStrip(
+        'GAIN', micObj.vol,
+        v => { micObj.vol = v; markDirty(); },
+        sendMicGainLive,
+        sendMicGainFinal,
+        '', 0, 100, 1, '%', 'cap-mic'
+      ));
+
+      ['LO', 'MID', 'HI'].forEach((l, i) => r.appendChild(createSimpleStrip(
+        l, micObj.tones[i],
+        v => { micObj.tones[i] = v; markDirty(); },
+        sendMicToneLive,
+        sendMicToneFinal,
+        '', -15, 15, 1, 'dB', 'cap-mic'
+      )));
+
+      m.body.appendChild(r);
+      colEq.appendChild(m.el);
+    });
+
+    grid.appendChild(colEq);
+    content.appendChild(grid);
+  }
+
+  function renderSub() {
+    const container = document.createElement('div');
+    container.className = 'grid-2col';
+
+    const subs = [
+      { id: 'sub1', label: 'SUBWOOFER A', model: 'LFE OUT 1' },
+      { id: 'sub2', label: 'SUBWOOFER B', model: 'LFE OUT 2' }
+    ];
+
+    subs.forEach(s => {
+      const data = appData.sub[s.id];
+      const rack = createModule(s.label, s.model, 'module-fill');
+
+      rack.body.innerHTML = '';
+      rack.body.appendChild(createPresetUI('sub', s.id));
+
+      const toggleRow = document.createElement('div');
+      toggleRow.className = 'toggle-row';
+
+      const lblStereo = document.createElement('div');
+      lblStereo.className = `mode-label ${!data.isMono ? 'active' : ''}`;
+      lblStereo.innerText = 'STEREO';
+
+      const labelSw = document.createElement('label');
+      labelSw.className = 'switch';
+      const inputSw = document.createElement('input');
+      inputSw.type = 'checkbox';
+      inputSw.checked = !!data.isMono;
+      const spanSlider = document.createElement('span');
+      spanSlider.className = 'slider';
+      labelSw.appendChild(inputSw);
+      labelSw.appendChild(spanSlider);
+
+      const lblMono = document.createElement('div');
+      lblMono.className = `mode-label ${data.isMono ? 'active' : ''}`;
+      lblMono.innerText = 'MONO';
+
+      inputSw.onchange = () => {
+        data.isMono = inputSw.checked;
+        if (inputSw.checked) { lblMono.classList.add('active'); lblStereo.classList.remove('active'); }
+        else { lblMono.classList.remove('active'); lblStereo.classList.add('active'); }
+        markDirty();
+        Tx.mark('sub', 'final');
+      };
+
+      toggleRow.appendChild(lblStereo);
+      toggleRow.appendChild(labelSw);
+      toggleRow.appendChild(lblMono);
+      rack.body.appendChild(toggleRow);
+
+      const phaseRow = document.createElement('div');
+      phaseRow.className = 'row-ctrl';
+      phaseRow.innerHTML = `<div class="ctrl-label">INVERT PHASE</div>`;
+      const phaseCheck = document.createElement('input');
+      phaseCheck.type = 'checkbox';
+      phaseCheck.className = 'std-checkbox';
+      phaseCheck.checked = !!data.phase;
+      phaseCheck.onchange = () => {
+        data.phase = phaseCheck.checked;
+        markDirty();
+        Tx.mark('phase', 'final');
+      };
+      phaseRow.appendChild(phaseCheck);
+      rack.body.appendChild(phaseRow);
+
+      rack.body.appendChild(createSlider('DELAY', data.delay, 0, 50, 0.5, 'ms',
+        v => { data.delay = v; markDirty(); },
+        () => Tx.mark('delay', 'live'),
+        () => Tx.mark('delay', 'final')
+      ));
+
+      const vContainer = document.createElement('div');
+      vContainer.className = 'eq-grid';
+      vContainer.style.marginTop = '25px';
+      vContainer.style.gridTemplateColumns = '1fr 1fr';
+
+      vContainer.appendChild(createSimpleStrip(
+        'X-OVER', data.freq,
+        v => { data.freq = v; markDirty(); },
+        () => Tx.mark('sub', 'live'),
+        () => Tx.mark('sub', 'final'),
+        '', 20, 250, 1, 'Hz', 'cap-sub'
+      ));
+
+      vContainer.appendChild(createSimpleStrip(
+        'GAIN', data.vol,
+        v => { data.vol = v; markDirty(); },
+        () => Tx.mark('gain', 'live'),
+        () => Tx.mark('gain', 'final'),
+        '', -60, 6, 0.5, 'dB', 'cap-sub'
+      ));
+
+      rack.body.appendChild(vContainer);
+      container.appendChild(rack.el);
+    });
+
+    content.appendChild(container);
+  }
+
+  function renderInfo() {
+    const grid = document.createElement('div');
+    grid.className = 'grid-lr';
+
+    const colLeft = document.createElement('div');
+    colLeft.className = 'col-left';
+
+    const wifiRack = createModule('WIFI SETTINGS', 'CONNECTIVITY');
+    const w = appData.wifi;
+
+    wifiRack.body.innerHTML = `
+      <div style="margin-bottom:5px; color:#777; font-weight:bold;">SSID Name:</div>
+      <input type="text" value="${w.ssid}" id="wifi_ssid">
+      <div style="margin-bottom:5px; margin-top:15px; color:#777; font-weight:bold;">Password:</div>
+      <input type="password" value="${w.pass}" id="wifi_pass">
+      <button class="save-btn" style="width:100%; margin-top:20px;" id="btn_wifi">CONNECT WIFI</button>
+    `;
+
+    setTimeout(() => {
+      const ss = document.getElementById("wifi_ssid");
+      const pw = document.getElementById("wifi_pass");
+      const bt = document.getElementById("btn_wifi");
+      if (!ss || !pw || !bt) return;
+
+      ss.oninput = () => { appData.wifi.ssid = ss.value; markDirty(); };
+      pw.oninput = () => { appData.wifi.pass = pw.value; markDirty(); };
+      bt.onclick = () => { Tx.mark('wifi', 'final'); };
+    }, 0);
+
+    colLeft.appendChild(wifiRack.el);
+
+    const colRight = document.createElement('div');
+    colRight.className = 'col-right';
+
+    const logRack = createModule('SYSTEM LOGS', 'DIAGNOSTICS', 'module-fill');
+    const logList = document.createElement('div');
+    logList.className = 'log-container';
+
+    const logs = [
+      { t: "10:22:01", m: "System boot sequence initiated..." },
+      { t: "10:22:02", m: "Loading kernel modules... OK" },
+      { t: "10:22:05", m: "DSP cores engaged. Waiting for input." }
+    ];
+
+    logs.forEach(l => {
+      const item = document.createElement('div');
+      item.className = 'log-entry';
+      item.innerHTML = `> [${l.t}] ${l.m}`;
+      logList.appendChild(item);
+    });
+
+    logRack.body.appendChild(logList);
+    colRight.appendChild(logRack.el);
+
+    // giữ thứ tự như bản gốc
+    grid.appendChild(colRight);
+    grid.appendChild(colLeft);
+    content.appendChild(grid);
+  }
+
+  // ----------------------------
+  // UI BUILDERS
+  // ----------------------------
+  function createModule(title, model, fillCls='') {
+    const el = document.createElement('div'); el.className = 'module-card ' + fillCls;
+    const head = document.createElement('div'); head.className='module-head';
+    head.innerHTML = `<div>${title}</div><div style="font-size:10px; opacity:0.5; font-weight:normal;">${model}</div>`;
+    const body = document.createElement('div'); body.className='module-body';
+    el.appendChild(head); el.appendChild(body);
+    return { el, body };
+  }
+
+  function createSlider(label, val, min, max, step, unit, onStateUpd, onLive, onFinal, cls='') {
+    const row = document.createElement('div'); row.className = 'row-ctrl';
+    const id = 'sl_' + Math.random().toString(36).substr(2,9);
+    row.innerHTML = `
+      <div class="ctrl-label">
+        ${label}
+        <span class="range-info">${min}..${max} ${unit}</span>
+      </div>
+      <div class="slider-group"><input type="range" class="h-slider ${cls}" min="${min}" max="${max}" step="${step}" value="${val}" id="${id}"></div>
+      <div class="val-wrapper">
+        <input type="number" class="val-disp-input" value="${val}" id="val_${id}" step="${step}">
+      </div>`;
+
+    setTimeout(() => {
+      const input = document.getElementById(id);
+      const valDisplay = document.getElementById('val_' + id);
+      if (!input) return;
+
+      input.addEventListener('touchstart', (e) => { e.stopPropagation(); }, {passive: false});
+      input.addEventListener('touchmove', (e) => { e.stopPropagation(); }, {passive: false});
+
+      let rafPending = false;
+      input.oninput = (e) => {
+        const v = parseFloat(e.target.value);
+        if (!rafPending) {
+          requestAnimationFrame(() => {
+            valDisplay.value = v;
+            onStateUpd(v);
+            if (onLive) onLive(v);
+            rafPending = false;
+          });
+          rafPending = true;
+        }
+      };
+      input.onchange = () => { if (onFinal) onFinal(); };
+      valDisplay.onchange = (e) => {
+        let v = parseFloat(e.target.value);
+        v = Math.max(min, Math.min(max, v));
+        v = Math.round(v / step) * step;
+        if (step < 1) v = Math.round(v * 100) / 100;
+
+        e.target.value = v;
+        input.value = v;
+        onStateUpd(v);
+        if (onFinal) onFinal();
+      };
+    }, 0);
+
+    return row;
+  }
+
+  function createSimpleStrip(label, val, onUpd, onLiveSend, onFinalSend, color, min = -15, max = 15, step = 1, unit='', capCls='cap-std') {
+    const el = document.createElement('div'); el.className = 'eq-strip';
+    el.innerHTML = `<div style="font-size:12px; color:#aaa; font-weight:bold; margin-bottom:5px; text-align:center;">${label}</div>`;
+
+    const valDiv = document.createElement('div'); valDiv.className = 'val-wrapper';
+    valDiv.style.width = '100%'; valDiv.style.justifyContent = 'center';
+    valDiv.innerHTML = `<input type="number" class="val-disp-input" value="${val}" step="${step}" style="width:60px; text-align:center; font-size:14px;">`;
+    const valInput = valDiv.querySelector('input');
+
+    const fader = createFader(
+      val,
+      (v)=>{ val=v; valInput.value=v; onUpd(v); if(onLiveSend) onLiveSend(); },
+      onFinalSend,
+      min, max, step, capCls
+    );
+
+    valInput.onchange = (e) => {
+      let v = parseFloat(e.target.value);
+      v = Math.max(min, Math.min(max, v));
+      v = Math.round(v / step) * step;
+      if (step < 1) v = Math.round(v * 100) / 100;
+
+      e.target.value = v;
+      val = v;
+      onUpd(v);
+      if (onFinalSend) onFinalSend();
+      const range = max - min;
+      const pct = (v - min) / range * 100;
+      fader.querySelector('.v-fader-cap').style.bottom = pct + '%';
+    };
+
+    el.appendChild(fader);
+    el.appendChild(valDiv);
+    return el;
+  }
+
+  function createComplexStrip(band, i, onUpd, onSendWrapper) {
+    const el = document.createElement('div'); el.className = 'eq-strip';
+    el.innerHTML = `<div style="font-size:12px; color:#aaa; margin-bottom:5px; font-weight:bold;">CH.${i+1}</div>`;
+
+    const sel = document.createElement('select');
+    const curT = normalizeType(band.t);
+    FILTER_TYPES.forEach(item => {
+      const o = document.createElement('option');
+      o.value = item.v;
+      o.text = item.label;
+      if (item.v === curT) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.onchange = e => { band.t = e.target.value; onUpd(); onSendWrapper(true); };
+    el.appendChild(sel);
+
+    const fIn = document.createElement('input');
+    fIn.type = 'number'; fIn.className = 'param-input'; fIn.value = band.f;
+    fIn.onblur = e => {
+      let v = parseFloat(e.target.value);
+      if (isNaN(v) || v < 20 || v > 20000) { e.target.value = band.f; return; }
+      band.f = v; onUpd(); onSendWrapper(true);
+    };
+    el.appendChild(fIn);
+
+    const qIn = document.createElement('input');
+    qIn.type = 'number'; qIn.className = 'param-input'; qIn.value = band.q;
+    qIn.onblur = e => {
+      let v = parseFloat(e.target.value);
+      if (isNaN(v) || v < 0.1 || v > 20) { e.target.value = band.q; return; }
+      band.q = v; onUpd(); onSendWrapper(true);
+    };
+    el.appendChild(qIn);
+
+    const valDiv = document.createElement('div');
+    valDiv.className = 'val-wrapper';
+    valDiv.style.width = '100%';
+    valDiv.style.justifyContent = 'center';
+    valDiv.innerHTML = `<input type="number" class="val-disp-input" value="${band.g}" step="0.5" style="width:60px; text-align:center; font-size:14px;">`;
+    const valInput = valDiv.querySelector('input');
+
+    const fader = createFader(
+      band.g,
+      (val) => { band.g = val; valInput.value = val; onUpd(); onSendWrapper(false); },
+      () => onSendWrapper(true),
+      -15, 15, 0.5
+    );
+
+    valInput.onchange = (e) => {
+      let v = parseFloat(e.target.value);
+      v = Math.max(-15, Math.min(15, v));
+      v = Math.round(v / 0.5) * 0.5;
+
+      e.target.value = v;
+      band.g = v;
+      onUpd();
+      onSendWrapper(true);
+
+      const range = 30;
+      const pct = (v - (-15)) / range * 100;
+      fader.querySelector('.v-fader-cap').style.bottom = pct + '%';
+    };
+
+    el.appendChild(fader);
+    el.appendChild(valDiv);
+    return el;
+  }
+
+  function createFader(initVal, onLive, onFinal, min, max, step, capCls='cap-std') {
+    const slot = document.createElement('div'); slot.className = 'v-fader-track';
+    const thumb = document.createElement('div'); thumb.className = 'v-fader-cap ' + capCls;
+    slot.appendChild(thumb);
+    const range = max - min;
+
+    const updateUI = (val) => {
+      val = Math.max(min, Math.min(max, val));
+      const pct = (val - min) / range * 100;
+      thumb.style.bottom = pct + '%';
+    };
+    updateUI(initVal);
+
+    let isDrag = false;
+    let rafPending = false;
+
+    const calcValFromEvent = (e) => {
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const rect = slot.getBoundingClientRect();
+      const pct = 1 - ((clientY - rect.top) / rect.height);
+      let val = min + (pct * range);
+      val = Math.round(val / step) * step;
+      val = Math.max(min, Math.min(max, val));
+      if (step < 1) val = Math.round(val * 100) / 100;
+      return val;
+    };
+
+    let lastVal = initVal;
+
+    const handle = (e) => {
+      const val = calcValFromEvent(e);
+      if (val === lastVal) return;
+      lastVal = val;
+
+      if (!rafPending) {
+        requestAnimationFrame(() => {
+          updateUI(val);
+          onLive(val);
+          rafPending = false;
+        });
+        rafPending = true;
+      }
+    };
+
+    const start = (e) => {
+      isDrag = true;
+      e.preventDefault();
+      handle(e);
+      document.addEventListener('mousemove', move);
+      document.addEventListener('touchmove', move, { passive: false });
+      document.addEventListener('mouseup', end);
+      document.addEventListener('touchend', end);
+    };
+
+    const move = (e) => { 
+      if (isDrag) { 
+        if (e.cancelable) e.preventDefault(); 
+        handle(e); 
+      } 
+    };
+
+    const end = () => {
+      if (isDrag) { isDrag = false; if (onFinal) onFinal(); }
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', end);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('touchend', end);
+    };
+
+    slot.addEventListener('dblclick', () => {
+      const resetVal = (min < 0 && max > 0) ? 0 : min;
+      lastVal = resetVal;
+      updateUI(resetVal);
+      onLive(resetVal);
+      if (onFinal) onFinal();
+    });
+
+    slot.addEventListener('mousedown', start);
+    slot.addEventListener('touchstart', start, { passive: false });
+    return slot;
+  }
+
+  // init
+  setTab('left');
+</script>
+</body>
+</html>
