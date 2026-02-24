@@ -3,17 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=1280, user-scalable=yes" />
-  <title>Gemini DSP - V56 (Dedup Fix + Schema Fix + LR NoDelay/NoPhase)</title>
+  <title>Sound programming</title>
   <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
   <style>
-    /* --- GIỮ NGUYÊN GIAO DIỆN V54 --- */
     :root {
       --metal-dark: #1a1510; --metal-light: #443322;
       --rust-accent: #d35400; --text-main: #e0d0b0; 
       --text-dim: #776655; --indicator: #ffaa00;
       --crt-green: #66ff66;
 
-      /* icon gear (nhỏ) để brand::before không bị trống */
       --icon-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23ffaa00'%3E%3Cpath d='M37.8 2.6l1.8 7.1c1.7.5 3.2 1.2 4.7 2.1l6.6-3.2 6 10.4-5.8 4.6c.2.9.3 1.8.3 2.7s-.1 1.8-.3 2.7l5.8 4.6-6 10.4-6.6-3.2c-1.5.9-3.1 1.6-4.7 2.1l-1.8 7.1H26.2l-1.8-7.1c-1.7-.5-3.2-1.2-4.7-2.1l-6.6 3.2-6-10.4 5.8-4.6c-.2-.9-.3-1.8-.3-2.7s.1-1.8.3-2.7l-5.8-4.6 6-10.4 6.6 3.2c1.5-.9 3.1 1.6 4.7 2.1l1.8-7.1h11.6z'/%3E%3Cpath d='M32 42.5c-5.8 0-10.5-4.7-10.5-10.5S26.2 21.5 32 21.5 42.5 26.2 42.5 32 37.8 42.5 32 42.5zm0-6c2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5-4.5 2-4.5 4.5 2 4.5 4.5 4.5z'/%3E%3C/g%3E%3C/svg%3E");
 
       --bg-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.1'/%3E%3C/svg%3E");
@@ -53,12 +51,12 @@
     #saveStatusText { color: #886644; font-family: 'Black Ops One'; font-size: 14px; }
     .save-btn { background: #331100; color: #ccc; font-family: 'Black Ops One'; font-size: 14px; padding: 10px 20px; border: 2px solid #552200; cursor: pointer; }
     .save-btn.confirm { background: #d35400; color: #000; border-color: #ffaa00; }
+    .footer-actions { display: flex; gap: 8px; align-items: center; }
     @keyframes simple-shake { 0% { transform: translate(1px, 0); } 50% { transform: translate(-1px, 0); } 100% { transform: translate(0, 0); } }
     .shaking { animation: simple-shake 0.1s infinite; }
 
     .grid-lr { display: flex; gap: 15px; width: 100%; align-items: stretch; } 
 
-    /* CÂN ĐỐI LẠI CỘT TRÁI: 1 ô preset + 2 module vuông vắn */
     .col-left { 
       flex: 4; min-width: 300px;
       display: grid;
@@ -69,6 +67,9 @@
     .col-right { flex: 6; display: flex; flex-direction: column; }
 
     .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+    .grid-log { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; height: 100%; align-items: stretch; }
+    .log-left, .log-right { display: flex; flex-direction: column; gap: 15px; min-width: 0; }
+    .log-left .module-card, .log-right .module-card { flex: 1; min-height: 0; }
 
     .module-card { background-color: #1e1612; border: 2px solid #332211; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; flex: 1; }
     .module-head { background: #2a1e18; padding: 8px 15px; border-bottom: 2px solid #332211; font-family: 'Black Ops One'; font-size: 13px; display: flex; justify-content: space-between; color: #bca; }
@@ -76,7 +77,6 @@
     .sub-box { border: 1px solid #332211; background: #16100c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
     .sub-box + .sub-box { margin-top: 10px; }
 
-    /* preset box đồng bộ phong cách module */
     .preset-box {
       background-color: #1e1612;
       border: 2px solid #332211;
@@ -113,7 +113,6 @@
     input[type=range].h-slider::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #000; border: 1px solid #442211; border-radius: 3px; }
     input[type=range].h-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 14px; background: #664422; border: 1px solid #000; margin-top: -10px; cursor: pointer; }
 
-    /* SWITCH TOGGLE CSS */
     .toggle-row {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         background: #110500; border: 1px solid #442200; padding: 8px 5px;
@@ -163,6 +162,8 @@
     @media (max-width: 1024px) {
       .content { padding: 10px; padding-bottom: 75px; } .grid-lr { flex-direction: column; display: block; }
       .col-left, .col-right { width: 100%; min-width: 0; display: flex; flex-direction: column; }
+      .grid-log { grid-template-columns: 1fr; height: auto; }
+      .log-left, .log-right { width: 100%; }
       .sidebar { width: 65px; } .nav-btn { width: 50px; height: 50px; font-size: 10px; }
     }
   </style>
@@ -191,19 +192,24 @@
     <div class="content" id="content"></div>
     <div class="footer-status">
         <div id="saveStatusText">SYSTEM READY</div>
-        <button class="save-btn" onclick="handleSave(this)">SAVE</button>
+        <div class="footer-actions">
+          <button class="save-btn" id="btnSync" onclick="handleSync(this)">SYNC</button>
+          <button class="save-btn" onclick="handleSave(this)">SAVE</button>
+        </div>
     </div>
   </div>
 </div>
 
 <script>
-  // --- V56: FIX DUP SEND + FIX EQ STEP + FIX PATCH ORDER + FIX SCHEMA + LR NO DELAY/PHASE UI ---
-  const STORAGE_KEY = 'geminiGrimoireV56';
+  const STORAGE_KEY = 'dspStateV56';
   const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const API_URL = isLocal ? "http://192.168.1.15" : "";
   const POST_PATH = "/data_in_esp";
+  const GET_STATE_PATH = "/dt_out_esp";
+  const ESP_PULL_MS = 3000;
+  const ENABLE_ESP_PULL = false;
+  const SHOW_ANTIFEEDBACK_UI = true;
 
-  // VU demo
   setInterval(() => {
     const vuL = document.getElementById('vuL');
     const vuR = document.getElementById('vuR');
@@ -214,7 +220,6 @@
     }
   }, 200);
 
-  // FILTER TYPES: value gửi xuống ESP (đúng chuỗi ESP hiểu), label để hiển thị
 const FILTER_TYPES = [
   { v: "bypass",      label: "bypass" },
   { v: "lowpass",     label: "lowpass" },
@@ -228,18 +233,15 @@ const FILTER_TYPES = [
   { v: "one-pole HP", label: "one-pole HP" },
 ];
 
-// Chuẩn hoá mọi kiểu nhập (HS/LP/LP1, viết hoa/thường...) về đúng chuỗi ESP cần
 function normalizeType(t) {
   if (!t) return "peak";
 
   const s = String(t).trim();
   const low = s.toLowerCase();
 
-  // nếu đã là đúng format ESP (giữ nguyên hoa/thường của one-pole)
   if (s === "one-pole LP" || s === "one-pole HP") return s;
 
   const map = {
-    // bypass / peak / notch / bp
     "bypass": "bypass",
     "peak": "peak",
     "peaking": "peak",
@@ -247,19 +249,16 @@ function normalizeType(t) {
     "bp": "bandpass",
     "bandpass": "bandpass",
 
-    // lp / hp
     "lp": "lowpass",
     "lowpass": "lowpass",
     "hp": "highpass",
     "highpass": "highpass",
 
-    // shelf
     "ls": "lowshelf",
     "lowshelf": "lowshelf",
     "hs": "highshelf",
     "highshelf": "highshelf",
 
-    // one-pole
     "lp1": "one-pole LP",
     "1-lp": "one-pole LP",
     "one-pole lp": "one-pole LP",
@@ -271,11 +270,9 @@ function normalizeType(t) {
     "one pole hp": "one-pole HP",
   };
 
-  // fallback: nếu user/old data là "LS/HS/PEAK/LP/..." thì cũng bắt được
   if (map[low]) return map[low];
   if (map[s]) return map[s];
 
-  // nếu không nhận ra -> về peak cho an toàn
   return "peak";
 }
 
@@ -285,18 +282,27 @@ function normalizeType(t) {
       "flat":   { name: "FACTORY RESET (Flat)", data: { bands: Array(6).fill().map((_,i)=>({t:i===0?"LS":i===5?"HS":"PEAK", f:[60,200,500,1000,4000,12000][i], q:1.0, g:0})), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 } } },
       "bass":   { name: "HEAVY MACHINERY (Bass)", data: { bands: [{f:60,g:8,q:1,t:"LS"},{f:120,g:4,q:1,t:"PEAK"},{f:500,g:-2,q:1,t:"PEAK"},{f:1000,g:0,q:1,t:"PEAK"},{f:4000,g:2,q:1,t:"PEAK"},{f:12000,g:5,q:1,t:"HS"}], loudness: { on: true, thresh: -30, maxGain: 12.0, freq: 120 } } },
       "vocal":  { name: "PA SYSTEM (Vocal)", data: { bands: [{f:80,g:-3,q:1,t:"LS"},{f:250,g:-2,q:1.5,t:"PEAK"},{f:1000,g:3,q:1,t:"PEAK"},{f:3000,g:4,q:1,t:"PEAK"},{f:8000,g:2,q:1,t:"PEAK"},{f:12000,g:0,q:1,t:"HS"}], loudness: { on: true, thresh: -45, maxGain: 4.0, freq: 80 } } },
-      "cinema": { name: "TURBINE RUMBLE (Cinema)", data: { bands: [{f:50,g:6,q:1,t:"LS"},{f:300,g:-4,q:2,t:"PEAK"},{f:1000,g:-2,q:1,t:"PEAK"},{f:4000,g:3,q:1,t:"PEAK"},{f:10000,g:6,q:1,t:"HS"},{f:15000,g:2,q:1,t:"PEAK"}], loudness: { on: true, thresh: -35, maxGain: 8.0, freq: 100 } } }
+      "cinema": { name: "TURBINE RUMBLE (Cinema)", data: { bands: [{f:50,g:6,q:1,t:"LS"},{f:300,g:-4,q:2,t:"PEAK"},{f:1000,g:-2,q:1,t:"PEAK"},{f:4000,g:3,q:1,t:"PEAK"},{f:10000,g:6,q:1,t:"HS"},{f:15000,g:2,q:1,t:"PEAK"}], loudness: { on: true, thresh: -35, maxGain: 8.0, freq: 100 } } },
+      "dance":  { name: "NIGHT CLUB (Dance)", data: { bands: [{f:55,g:6,q:0.9,t:"LS"},{f:140,g:3,q:1.0,t:"PEAK"},{f:450,g:-2,q:1.4,t:"PEAK"},{f:2200,g:2,q:1.2,t:"PEAK"},{f:7000,g:4,q:1.0,t:"PEAK"},{f:13000,g:5,q:0.9,t:"HS"}], loudness: { on: true, thresh: -34, maxGain: 9.0, freq: 110 } } },
+      "acoustic": { name: "WOOD STAGE (Acoustic)", data: { bands: [{f:70,g:1,q:0.8,t:"LS"},{f:180,g:-1,q:1.2,t:"PEAK"},{f:650,g:1,q:1.1,t:"PEAK"},{f:2500,g:2,q:1.0,t:"PEAK"},{f:5500,g:1,q:1.1,t:"PEAK"},{f:12000,g:2,q:0.9,t:"HS"}], loudness: { on: true, thresh: -44, maxGain: 4.0, freq: 90 } } },
+      "rock":   { name: "ARENA ROCK (Rock)", data: { bands: [{f:75,g:4,q:1.0,t:"LS"},{f:250,g:1,q:1.1,t:"PEAK"},{f:800,g:-1,q:1.3,t:"PEAK"},{f:1800,g:2,q:1.2,t:"PEAK"},{f:4200,g:3,q:1.0,t:"PEAK"},{f:11000,g:4,q:1.0,t:"HS"}], loudness: { on: true, thresh: -37, maxGain: 7.0, freq: 105 } } },
+      "speech": { name: "BROADCAST (Speech)", data: { bands: [{f:90,g:-4,q:0.8,t:"LS"},{f:240,g:-3,q:1.3,t:"PEAK"},{f:1100,g:3,q:1.1,t:"PEAK"},{f:2800,g:4,q:1.0,t:"PEAK"},{f:6500,g:2,q:1.2,t:"PEAK"},{f:12000,g:-1,q:0.8,t:"HS"}], loudness: { on: true, thresh: -48, maxGain: 3.0, freq: 80 } } }
     },
     sub: {
-      "off":   { name: "ENGINE OFF (Mute)", data: { freq: 80, vol: -60 } },
       "music": { name: "HYDRAULIC PUMP (Music)", data: { freq: 90, vol: -5 } },
       "movie": { name: "PILE DRIVER (Movie)", data: { freq: 60, vol: 0 } },
-      "punch": { name: "PISTON STRIKE (Punchy)", data: { freq: 120, vol: 2 } }
+      "punch": { name: "PISTON STRIKE (Punchy)", data: { freq: 120, vol: 2 } },
+      "tight": { name: "TIGHT KICK (Fast)", data: { freq: 95, vol: -8 } },
+      "deep":  { name: "DEEP RUMBLE (Low)", data: { freq: 55, vol: -2 } }
     },
     mic: {
-      "speech":  { name: "INTERCOM (Speech)", data: { reverb: { gain: 10, pre: 0, decay: 10, drywet: 10, room: 30, damp: 50 }, echo: { gain: 0, repeat: 0, drywet: 0, delay: 0 }, feedback: { q: 5.0, enable: true } } },
-      "karaoke": { name: "HANGAR ECHO (Karaoke)", data: { reverb: { gain: 45, pre: 20, decay: 50, drywet: 40, room: 70, damp: 40 }, echo: { gain: 35, repeat: 45, drywet: 35, delay: 230 }, feedback: { q: 5.0, enable: true } } },
-      "concert": { name: "WAREHOUSE RAVE (Pro)", data: { reverb: { gain: 60, pre: 50, decay: 80, drywet: 50, room: 90, damp: 20 }, echo: { gain: 20, repeat: 30, drywet: 20, delay: 180 }, feedback: { q: 5.0, enable: true } } }
+      "speech":  { name: "INTERCOM (Speech)", data: { micVol: { m1: 84, m2: 84 }, reverb: { gain: 24, pre: 0, decay: 10, room: 30, damp: 55 }, echo: { gain: 14, repeat: 8, delay: 90 }, feedback: { q: 5.5, enable: true, thresh: 60, cut: 58, sens: 52, shift: 5, shiftEnable: true } } },
+      "karaoke": { name: "HANGAR ECHO (Karaoke)", data: { micVol: { m1: 82, m2: 82 }, reverb: { gain: 34, pre: 22, decay: 52, room: 70, damp: 42 }, echo: { gain: 22, repeat: 40, delay: 220 }, feedback: { q: 5.2, enable: true, thresh: 56, cut: 54, sens: 50, shift: 5, shiftEnable: true } } },
+      "concert": { name: "WAREHOUSE RAVE (Pro)", data: { micVol: { m1: 80, m2: 80 }, reverb: { gain: 38, pre: 46, decay: 76, room: 90, damp: 24 }, echo: { gain: 20, repeat: 30, delay: 180 }, feedback: { q: 5.0, enable: true, thresh: 52, cut: 58, sens: 53, shift: 5, shiftEnable: true } } },
+      "ballad":  { name: "WARM HALL (Ballad)", data: { micVol: { m1: 82, m2: 82 }, reverb: { gain: 36, pre: 28, decay: 58, room: 78, damp: 48 }, echo: { gain: 18, repeat: 26, delay: 180 }, feedback: { q: 5.5, enable: true, thresh: 55, cut: 52, sens: 48, shift: 5, shiftEnable: true } } },
+      "livefast": { name: "SMALL STAGE (Live Fast)", data: { micVol: { m1: 85, m2: 85 }, reverb: { gain: 26, pre: 10, decay: 26, room: 45, damp: 60 }, echo: { gain: 12, repeat: 18, delay: 120 }, feedback: { q: 6.0, enable: true, thresh: 60, cut: 60, sens: 55, shift: 5, shiftEnable: true } } },
+      "edmvox": { name: "EDM VOX (Wide)", data: { micVol: { m1: 81, m2: 81 }, reverb: { gain: 36, pre: 40, decay: 72, room: 88, damp: 28 }, echo: { gain: 24, repeat: 40, delay: 255 }, feedback: { q: 5.0, enable: true, thresh: 52, cut: 58, sens: 52, shift: 5, shiftEnable: true } } },
+      "duet": { name: "DUET ROOM (2 Mic)", data: { micVol: { m1: 83, m2: 83 }, reverb: { gain: 32, pre: 16, decay: 44, room: 62, damp: 46 }, echo: { gain: 16, repeat: 22, delay: 160 }, feedback: { q: 5.8, enable: true, thresh: 58, cut: 56, sens: 50, shift: 5, shiftEnable: true } } }
     }
   };
 
@@ -309,12 +315,12 @@ function normalizeType(t) {
              echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
              feedback: { q: 5.0, enable: true, thresh: 50, cut: 50, sens: 50, shift: 5, shiftEnable: true } },
     wifi:  { ssid: '', pass: '' },
+    system:{ marqueeMs: 12, audioDelayMs: 0 },
     info:  ""
   };
 
   function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
 
-  // Load localStorage + tự vá thiếu field
   let appData = (() => {
     try {
       const v = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -324,7 +330,6 @@ function normalizeType(t) {
     }
   })();
 
-  // ensure structure
   if (!appData.left) appData.left = deepClone(defaultData.left);
   if (!appData.right) appData.right = deepClone(defaultData.right);
 
@@ -347,26 +352,24 @@ function normalizeType(t) {
   if (appData.mic.feedback.shiftEnable === undefined) appData.mic.feedback.shiftEnable = defaultData.mic.feedback.shiftEnable;
 
   if (!appData.wifi) appData.wifi = deepClone(defaultData.wifi);
+  if (!appData.system || typeof appData.system !== "object") appData.system = deepClone(defaultData.system);
+  appData.system.marqueeMs = Number(appData.system.marqueeMs ?? defaultData.system.marqueeMs);
+  appData.system.audioDelayMs = Number(appData.system.audioDelayMs ?? defaultData.system.audioDelayMs);
 
-  // --- SCHEMA FIX: đảm bảo bands/loudness/vol luôn đúng kiểu để UI không trắng ---
   function ensureChannel(key) {
     if (!appData[key] || typeof appData[key] !== "object") appData[key] = deepClone(defaultData[key]);
 
-    // loudness
     if (!appData[key].loudness || typeof appData[key].loudness !== "object") appData[key].loudness = deepClone(defaultData[key].loudness);
     appData[key].loudness.on = !!appData[key].loudness.on;
     appData[key].loudness.thresh = Number(appData[key].loudness.thresh ?? defaultData[key].loudness.thresh);
     appData[key].loudness.maxGain = Number(appData[key].loudness.maxGain ?? defaultData[key].loudness.maxGain);
     appData[key].loudness.freq = Number(appData[key].loudness.freq ?? defaultData[key].loudness.freq);
 
-    // gain
     appData[key].vol = Number(appData[key].vol ?? defaultData[key].vol);
 
-    // LR: XOÁ UI DELAY/PHASE -> khoá giá trị về 0/false để tránh dính dữ liệu cũ từ localStorage
     appData[key].delay = 0;
     appData[key].phase = false;
 
-    // bands
     if (!Array.isArray(appData[key].bands) || appData[key].bands.length !== 6) {
       appData[key].bands = deepClone(defaultData[key].bands);
     }
@@ -383,9 +386,6 @@ function normalizeType(t) {
   ensureChannel("left");
   ensureChannel("right");
 
-  // ----------------------------
-  // BUILDERS
-  // ----------------------------
   const BUILDERS = {
     gain() {
       return {
@@ -395,14 +395,12 @@ function normalizeType(t) {
       };
     },
     delay() {
-      // LR đã bỏ UI -> out luôn 0 để không dính delay cũ
       return {
         out: { L: 0, R: 0 },
         sub: { S1: Number(appData.sub.sub1.delay), S2: Number(appData.sub.sub2.delay) }
       };
     },
     phase() {
-      // LR đã bỏ UI -> out luôn 0 để không dính phase cũ
       return {
         out: { L: 0, R: 0 },
         sub: { S1: appData.sub.sub1.phase ? 1 : 0, S2: appData.sub.sub2.phase ? 1 : 0 }
@@ -432,14 +430,16 @@ function normalizeType(t) {
     echo() { return { ...appData.mic.echo }; },
     feedback() { return { ...appData.mic.feedback }; },
     wifi() { return { ...appData.wifi }; },
+    system() {
+      return {
+        marqueeMs: Number(appData.system.marqueeMs),
+        audioDelayMs: Number(appData.system.audioDelayMs)
+      };
+    },
 
-    // full sync
     eqFull() { return { L: appData.left.bands, R: appData.right.bands }; }
   };
 
-  // ----------------------------
-  // TX JSON BATCH (debounce + seq) + FIX DUP SEND
-  // ----------------------------
   const Tx = (() => {
     const VER = 1;
     let seq = 0;
@@ -450,10 +450,8 @@ function normalizeType(t) {
     let tLive = null;
     let tFinal = null;
 
-    // tăng để tap/click thường không bắn live trước final
     const LIVE_MS = 180;
 
-    // chống gửi trùng
     let lastSig = "";
     let lastSigTs = 0;
     const DEDUP_WINDOW_MS = 1200;
@@ -480,14 +478,12 @@ function normalizeType(t) {
 
       const patches = [];
 
-      // EQ delta
       if (eqPending) {
         patches.push({ group: "eq", data: eqPending });
         eqPending = null;
       }
 
-      // FIX: ép thứ tự group cố định (đỡ ESP parse lệch do Set)
-      const ORDER = ["gain","delay","phase","loudness","sub","micTone","reverb","echo","feedback","wifi"];
+      const ORDER = ["gain","delay","phase","loudness","sub","micTone","reverb","echo","feedback","wifi","system"];
       for (const g of ORDER) {
         if (!pending.has(g)) continue;
         const b = BUILDERS[g];
@@ -497,7 +493,6 @@ function normalizeType(t) {
 
       if (!patches.length) return;
 
-      // FIX DUP: signature + window
       const sig = JSON.stringify(patches);
       const tsNow = nowTs();
       if (sig === lastSig && (tsNow - lastSigTs) <= DEDUP_WINDOW_MS) {
@@ -574,7 +569,7 @@ function normalizeType(t) {
     }
 
     function syncAll() {
-      const patches = [
+      const patchesMain = [
         { group: "gain", data: BUILDERS.gain() },
         { group: "delay", data: BUILDERS.delay() },
         { group: "phase", data: BUILDERS.phase() },
@@ -584,14 +579,20 @@ function normalizeType(t) {
         { group: "reverb", data: BUILDERS.reverb() },
         { group: "echo", data: BUILDERS.echo() },
         { group: "feedback", data: BUILDERS.feedback() },
-        { group: "eq", data: BUILDERS.eqFull() },
+        { group: "system", data: BUILDERS.system() },
       ];
+      const patchesEq = [{ group: "eq", data: BUILDERS.eqFull() }];
 
       lastSig = "";
       lastSigTs = 0;
 
-      const payload = { ver: VER, seq: ++seq, ts: nowTs(), type: "batch", patches };
-      postJSON(payload).catch(console.warn);
+      const payloadMain = { ver: VER, seq: ++seq, ts: nowTs(), type: "batch", patches: patchesMain };
+      postJSON(payloadMain)
+        .then(() => {
+          const payloadEq = { ver: VER, seq: ++seq, ts: nowTs(), type: "batch", patches: patchesEq };
+          return postJSON(payloadEq);
+        })
+        .catch(console.warn);
     }
 
     function sendSaveAll() {
@@ -605,9 +606,6 @@ function normalizeType(t) {
     return { mark, markEq, syncAll, sendSaveAll };
   })();
 
-  // ----------------------------
-  // APP STATE / UI ROOT
-  // ----------------------------
   let currentTab = 'left';
 
   function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
@@ -651,7 +649,7 @@ function normalizeType(t) {
 
     const hint = document.createElement('div');
     hint.className = "preset-hint";
-    hint.innerText = "Chọn preset để nạp nhanh thông số.";
+    hint.innerText = "Chá»n preset Ä‘á»ƒ náº¡p nhanh thÃ´ng sá»‘.";
 
     const select = document.createElement('select');
     const defOpt = document.createElement('option');
@@ -691,13 +689,28 @@ function normalizeType(t) {
       if (data.freq !== undefined) target.freq = Number(data.freq);
       if (data.vol !== undefined) target.vol = Number(data.vol);
     } else if (type === 'mic') {
-      if (data.reverb) appData.mic.reverb = { ...data.reverb };
-      if (data.echo) appData.mic.echo = { ...data.echo };
-      if (data.feedback) appData.mic.feedback = { ...data.feedback };
+      if (data.micVol) {
+        if (data.micVol.m1 !== undefined) appData.mic.mic1.vol = Number(data.micVol.m1);
+        if (data.micVol.m2 !== undefined) appData.mic.mic2.vol = Number(data.micVol.m2);
+      }
+      const fxMix = Number(appData.mic.echo?.drywet ?? appData.mic.reverb?.drywet ?? 30);
+      if (data.reverb) {
+        const { drywet, ...reverbNoMix } = data.reverb;
+        appData.mic.reverb = { ...appData.mic.reverb, ...reverbNoMix };
+      }
+      if (data.echo) {
+        const { drywet, ...echoNoMix } = data.echo;
+        appData.mic.echo = { ...appData.mic.echo, ...echoNoMix };
+      }
+      appData.mic.echo.drywet = fxMix;
+      appData.mic.reverb.drywet = fxMix;
+      if (data.feedback) appData.mic.feedback = { ...appData.mic.feedback, ...data.feedback };
     }
     markDirty();
+    save();
     render();
     Tx.syncAll();
+    setTimeout(() => Tx.syncAll(), 120);
   }
 
   function render() {
@@ -716,7 +729,8 @@ function normalizeType(t) {
 
   function handleSave(button) {
     save();
-    Tx.sendSaveAll();
+    Tx.syncAll();
+    setTimeout(() => Tx.sendSaveAll(), 180);
 
     const statusTextEl = document.getElementById('saveStatusText');
     button.classList.add('confirm');
@@ -743,7 +757,6 @@ function normalizeType(t) {
     colLeft.className = 'col-left';
     colLeft.appendChild(createPresetUI('ch', ch));
 
-    // Loudness
     const loudRack = createModule('DYNAMIC LOUDNESS', 'BASS COMPENSATION');
 
     const enRow = document.createElement('div');
@@ -781,10 +794,8 @@ function normalizeType(t) {
 
     colLeft.appendChild(loudRack.el);
 
-    // Master Output (đã XOÁ DELAY slider + PHASE switch theo yêu cầu)
     const masterRack = createModule('MASTER OUTPUT', 'FINAL STAGE');
 
-    // Chỉ giữ GAIN
     masterRack.body.appendChild(createSlider('GAIN', data.vol, -60, 6, 0.5, 'dB',
       v => { data.vol = v; markDirty(); },
       () => Tx.mark('gain', 'live'),
@@ -794,7 +805,6 @@ function normalizeType(t) {
     colLeft.appendChild(masterRack.el);
     grid.appendChild(colLeft);
 
-    // EQ
     const colRight = document.createElement('div');
     colRight.className = 'col-right';
 
@@ -803,7 +813,6 @@ function normalizeType(t) {
     eqGrid.className = 'eq-grid';
     eqGrid.style.gridTemplateColumns = 'repeat(6, 1fr)';
 
-    // bảo vệ nếu localStorage lỗi lạ
     if (!Array.isArray(data.bands) || data.bands.length !== 6) {
       data.bands = deepClone(defaultData[ch].bands).map(b => ({...b, t: normalizeType(b.t)}));
     }
@@ -835,72 +844,37 @@ function normalizeType(t) {
 
     colFx.appendChild(createPresetUI('mic', 'mic'));
 
-    // Anti-feedback
-    const controlRack = createModule('ANTI-FEEDBACK', 'SUPPRESSOR');
-    const fbData = appData.mic.feedback;
+    if (SHOW_ANTIFEEDBACK_UI) {
+      const controlRack = createModule('ANTI-FEEDBACK', 'SUPPRESSOR');
+      const fbData = appData.mic.feedback;
 
-    const fbBox1 = document.createElement('div');
-    fbBox1.className = 'sub-box';
+      const fbBox2 = document.createElement('div');
+      fbBox2.className = 'sub-box';
 
-    const fbRow = document.createElement('div');
-    fbRow.className = 'row-ctrl';
-    fbRow.innerHTML = `<div class="ctrl-label">ENABLE</div>`;
-    const fbEn = document.createElement('input');
-    fbEn.type = 'checkbox';
-    fbEn.className = 'std-checkbox';
-    fbEn.checked = !!fbData.enable;
-    fbEn.onchange = () => {
-      fbData.enable = fbEn.checked;
-      markDirty();
-      Tx.mark('feedback', 'final');
-    };
-    fbRow.appendChild(fbEn);
-    fbBox1.appendChild(fbRow);
+      const shiftRow = document.createElement('div');
+      shiftRow.className = 'row-ctrl';
+      shiftRow.innerHTML = `<div class="ctrl-label">SHIFT EN</div>`;
+      const shiftEn = document.createElement('input');
+      shiftEn.type = 'checkbox';
+      shiftEn.className = 'std-checkbox';
+      shiftEn.checked = !!fbData.shiftEnable;
+      shiftEn.onchange = () => {
+        fbData.shiftEnable = shiftEn.checked;
+        markDirty();
+        Tx.mark('feedback', 'final');
+      };
+      shiftRow.appendChild(shiftEn);
+      fbBox2.appendChild(shiftRow);
 
-    fbBox1.appendChild(createSlider('THRESH', fbData.thresh ?? 50, 0, 100, 1, '%',
-      v => { fbData.thresh = v; markDirty(); },
-      () => Tx.mark('feedback', 'live'),
-      () => Tx.mark('feedback', 'final')
-    ));
-    fbBox1.appendChild(createSlider('CUT', fbData.cut ?? 50, 0, 100, 1, '%',
-      v => { fbData.cut = v; markDirty(); },
-      () => Tx.mark('feedback', 'live'),
-      () => Tx.mark('feedback', 'final')
-    ));
-    fbBox1.appendChild(createSlider('SENS', fbData.sens ?? 50, 0, 100, 1, '%',
-      v => { fbData.sens = v; markDirty(); },
-      () => Tx.mark('feedback', 'live'),
-      () => Tx.mark('feedback', 'final')
-    ));
-    controlRack.body.appendChild(fbBox1);
+      fbBox2.appendChild(createSlider('SHIFT', fbData.shift ?? 5, 0, 20, 0.5, 'Hz',
+        v => { fbData.shift = v; markDirty(); },
+        () => Tx.mark('feedback', 'live'),
+        () => Tx.mark('feedback', 'final')
+      ));
+      controlRack.body.appendChild(fbBox2);
+      colFx.appendChild(controlRack.el);
+    }
 
-    const fbBox2 = document.createElement('div');
-    fbBox2.className = 'sub-box';
-
-    const shiftRow = document.createElement('div');
-    shiftRow.className = 'row-ctrl';
-    shiftRow.innerHTML = `<div class="ctrl-label">SHIFT EN</div>`;
-    const shiftEn = document.createElement('input');
-    shiftEn.type = 'checkbox';
-    shiftEn.className = 'std-checkbox';
-    shiftEn.checked = !!fbData.shiftEnable;
-    shiftEn.onchange = () => {
-      fbData.shiftEnable = shiftEn.checked;
-      markDirty();
-      Tx.mark('feedback', 'final');
-    };
-    shiftRow.appendChild(shiftEn);
-    fbBox2.appendChild(shiftRow);
-
-    fbBox2.appendChild(createSlider('SHIFT', fbData.shift ?? 5, 0, 20, 0.5, 'Hz',
-      v => { fbData.shift = v; markDirty(); },
-      () => Tx.mark('feedback', 'live'),
-      () => Tx.mark('feedback', 'final')
-    ));
-    controlRack.body.appendChild(fbBox2);
-    colFx.appendChild(controlRack.el);
-
-    // Reverb
     const rev = appData.mic.reverb;
     const fxReverb = createModule('REVERB', 'SPACE FX');
     fxReverb.body.appendChild(createSlider('LEVEL', rev.gain, 0, 100, 1, '%',
@@ -923,7 +897,6 @@ function normalizeType(t) {
     ));
     colFx.appendChild(fxReverb.el);
 
-    // Echo
     const echo = appData.mic.echo;
     const fxEcho = createModule('ECHO', 'DELAY FX');
     fxEcho.body.appendChild(createSlider('LEVEL', echo.gain, 0, 100, 1, '%',
@@ -942,7 +915,6 @@ function normalizeType(t) {
 
     grid.appendChild(colFx);
 
-    // MIC1/MIC2
     const colEq = document.createElement('div');
     colEq.style.display = 'flex';
     colEq.style.flexDirection = 'column';
@@ -1088,10 +1060,10 @@ function normalizeType(t) {
 
   function renderInfo() {
     const grid = document.createElement('div');
-    grid.className = 'grid-lr';
+    grid.className = 'grid-log';
 
     const colLeft = document.createElement('div');
-    colLeft.className = 'col-left';
+    colLeft.className = 'log-left';
 
     const wifiRack = createModule('WIFI SETTINGS', 'CONNECTIVITY');
     const w = appData.wifi;
@@ -1117,8 +1089,22 @@ function normalizeType(t) {
 
     colLeft.appendChild(wifiRack.el);
 
+    const sysRack = createModule('LOG CONTROL', 'RUNTIME');
+    const sys = appData.system;
+    sysRack.body.appendChild(createSlider('MARQUEE SPEED', marqueeStepToUi(sys.marqueeMs), 8, 80, 1, 'spd',
+      v => { appData.system.marqueeMs = marqueeUiToStep(v); markDirty(); },
+      () => Tx.mark('system', 'live'),
+      () => Tx.mark('system', 'final')
+    ));
+    sysRack.body.appendChild(createSlider('AUDIO DELAY', sys.audioDelayMs, 0, 60, 1, 'ms',
+      v => { appData.system.audioDelayMs = v; markDirty(); },
+      () => Tx.mark('system', 'live'),
+      () => Tx.mark('system', 'final')
+    ));
+    colLeft.appendChild(sysRack.el);
+
     const colRight = document.createElement('div');
-    colRight.className = 'col-right';
+    colRight.className = 'log-right';
 
     const logRack = createModule('SYSTEM LOGS', 'DIAGNOSTICS', 'module-fill');
     const logList = document.createElement('div');
@@ -1140,15 +1126,11 @@ function normalizeType(t) {
     logRack.body.appendChild(logList);
     colRight.appendChild(logRack.el);
 
-    // giữ thứ tự như bản gốc
-    grid.appendChild(colRight);
     grid.appendChild(colLeft);
+    grid.appendChild(colRight);
     content.appendChild(grid);
   }
 
-  // ----------------------------
-  // UI BUILDERS
-  // ----------------------------
   function createModule(title, model, fillCls='') {
     const el = document.createElement('div'); el.className = 'module-card ' + fillCls;
     const head = document.createElement('div'); head.className='module-head';
@@ -1395,8 +1377,183 @@ function normalizeType(t) {
     return slot;
   }
 
-  // init
+  let rxInFlight = false;
+
+  function numOr(cur, v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : cur;
+  }
+
+  function boolOr(cur, v) {
+    if (v === undefined || v === null) return cur;
+    if (typeof v === "boolean") return v;
+    if (typeof v === "string") return v === "1" || v.toLowerCase() === "true";
+    if (typeof v === "number") return v !== 0;
+    return cur;
+  }
+
+  function roundStep(v, step = 1) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || step <= 0) return v;
+    return Math.round(n / step) * step;
+  }
+
+  function marqueeUiToStep(v) {
+    const n = Number(v);
+    const ui = Math.max(8, Math.min(80, Number.isFinite(n) ? n : 8));
+    return 84 - ui; // 80->4 (fastest), 8->76 (slowest)
+  }
+  function marqueeStepToUi(ms) {
+    const n = Number(ms);
+    const step = Math.max(4, Math.min(80, Number.isFinite(n) ? n : 12));
+    return 84 - step;
+  }
+
+  function dbFromVol100(v100, fallbackDb) {
+    const v = Number(v100);
+    if (!Number.isFinite(v)) return fallbackDb;
+    const x = Math.max(0, Math.min(100, v));
+    return -60 + (x * 66 / 100);
+  }
+
+  function applyEspStateToUi(data) {
+    if (!data || typeof data !== "object") return;
+
+    appData.left.vol = roundStep(dbFromVol100(data["volume-2"], appData.left.vol), 0.5);
+    appData.right.vol = roundStep(dbFromVol100(data["volume-3"], appData.right.vol), 0.5);
+    appData.sub.sub1.vol = roundStep(dbFromVol100(data["volume-4"], appData.sub.sub1.vol), 0.5);
+    appData.sub.sub2.vol = roundStep(dbFromVol100(data["volume-5"], appData.sub.sub2.vol), 0.5);
+    appData.mic.mic1.vol = numOr(appData.mic.mic1.vol, data["volume-7"]);
+    appData.mic.mic2.vol = numOr(appData.mic.mic2.vol, data["volume-8"]);
+
+    appData.sub.sub1.freq = numOr(appData.sub.sub1.freq, data["tsc2l1"]);
+    appData.sub.sub2.freq = numOr(appData.sub.sub2.freq, data["tsc2r1"]);
+    appData.sub.sub1.delay = numOr(appData.sub.sub1.delay, data["sub-delay-S1"]);
+    appData.sub.sub2.delay = numOr(appData.sub.sub2.delay, data["sub-delay-S2"]);
+    appData.sub.sub1.phase = boolOr(appData.sub.sub1.phase, data["sub-phase-S1"]);
+    appData.sub.sub2.phase = boolOr(appData.sub.sub2.phase, data["sub-phase-S2"]);
+    appData.sub.sub1.isMono = boolOr(appData.sub.sub1.isMono, data["sub-mono-S1"]);
+    appData.sub.sub2.isMono = boolOr(appData.sub.sub2.isMono, data["sub-mono-S2"]);
+
+    appData.mic.mic1.tones[0] = numOr(appData.mic.mic1.tones[0], data["cdsm1"]);
+    appData.mic.mic1.tones[1] = numOr(appData.mic.mic1.tones[1], data["cdsm2"]);
+    appData.mic.mic1.tones[2] = numOr(appData.mic.mic1.tones[2], data["cdsm3"]);
+    appData.mic.mic2.tones[0] = numOr(appData.mic.mic2.tones[0], data["cdsm7"]);
+    appData.mic.mic2.tones[1] = numOr(appData.mic.mic2.tones[1], data["cdsm8"]);
+    appData.mic.mic2.tones[2] = numOr(appData.mic.mic2.tones[2], data["cdsm9"]);
+
+    appData.mic.reverb.gain = numOr(appData.mic.reverb.gain, data["reverb-1"]);
+    appData.mic.reverb.pre = numOr(appData.mic.reverb.pre, data["reverb-2"]);
+    appData.mic.reverb.decay = numOr(appData.mic.reverb.decay, data["reverb-3"]);
+    appData.mic.reverb.drywet = numOr(appData.mic.reverb.drywet, data["reverb-4"]);
+    appData.mic.reverb.room = numOr(appData.mic.reverb.room, data["reverb-5"]);
+    appData.mic.reverb.damp = numOr(appData.mic.reverb.damp, data["reverb-6"]);
+
+    appData.mic.echo.gain = numOr(appData.mic.echo.gain, data["echo-1"]);
+    appData.mic.echo.repeat = numOr(appData.mic.echo.repeat, data["echo-2"]);
+    appData.mic.echo.drywet = numOr(appData.mic.echo.drywet, data["echo-3"]);
+    appData.mic.echo.delay = numOr(appData.mic.echo.delay, data["echo-4"]);
+
+    appData.mic.feedback.enable = boolOr(appData.mic.feedback.enable, data["fb-enable"] ?? data["data_switch_1"]);
+    appData.mic.feedback.thresh = numOr(appData.mic.feedback.thresh, data["fb-thresh"]);
+    appData.mic.feedback.cut = numOr(appData.mic.feedback.cut, data["fb-cut"]);
+    appData.mic.feedback.sens = numOr(appData.mic.feedback.sens, data["fb-sens"]);
+    appData.mic.feedback.shift = numOr(appData.mic.feedback.shift, data["fb-shift"]);
+    appData.mic.feedback.shiftEnable = boolOr(appData.mic.feedback.shiftEnable, data["fb-shift-enable"]);
+    appData.mic.feedback.q = numOr(appData.mic.feedback.q, data["fb-q"]);
+
+    appData.left.loudness.on = boolOr(appData.left.loudness.on, data["loud-L-on"]);
+    appData.left.loudness.thresh = numOr(appData.left.loudness.thresh, data["loud-L-thresh"]);
+    appData.left.loudness.maxGain = numOr(appData.left.loudness.maxGain, data["loud-L-maxGain"]);
+    appData.left.loudness.freq = numOr(appData.left.loudness.freq, data["loud-L-freq"]);
+
+    appData.right.loudness.on = boolOr(appData.right.loudness.on, data["loud-R-on"]);
+    appData.right.loudness.thresh = numOr(appData.right.loudness.thresh, data["loud-R-thresh"]);
+    appData.right.loudness.maxGain = numOr(appData.right.loudness.maxGain, data["loud-R-maxGain"]);
+    appData.right.loudness.freq = numOr(appData.right.loudness.freq, data["loud-R-freq"]);
+
+    appData.system.marqueeMs = roundStep(numOr(appData.system.marqueeMs, data["log-marquee-ms"]), 1);
+    appData.system.audioDelayMs = roundStep(numOr(appData.system.audioDelayMs, data["log-audio-delay-ms"]), 1);
+
+    for (let i = 1; i <= 6; i++) {
+      const li = i - 1;
+      if (appData.left.bands[li]) {
+        appData.left.bands[li].f = numOr(appData.left.bands[li].f, data[`eqL${i}f`]);
+        appData.left.bands[li].g = numOr(appData.left.bands[li].g, data[`eqL${i}g`]);
+        appData.left.bands[li].q = numOr(appData.left.bands[li].q, data[`eqL${i}q`]);
+        if (data[`eqL${i}t`] !== undefined && data[`eqL${i}t`] !== null) {
+          appData.left.bands[li].t = normalizeType(data[`eqL${i}t`]);
+        }
+      }
+      if (appData.right.bands[li]) {
+        appData.right.bands[li].f = numOr(appData.right.bands[li].f, data[`eqR${i}f`]);
+        appData.right.bands[li].g = numOr(appData.right.bands[li].g, data[`eqR${i}g`]);
+        appData.right.bands[li].q = numOr(appData.right.bands[li].q, data[`eqR${i}q`]);
+        if (data[`eqR${i}t`] !== undefined && data[`eqR${i}t`] !== null) {
+          appData.right.bands[li].t = normalizeType(data[`eqR${i}t`]);
+        }
+      }
+    }
+
+    save();
+    render();
+  }
+
+  async function pullStateFromEsp() {
+    if (rxInFlight) return;
+    rxInFlight = true;
+    try {
+      const resp = await fetch(`${API_URL}${GET_STATE_PATH}`, { method: "GET", cache: "no-store" });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      applyEspStateToUi(data);
+      return true;
+    } catch (e) {
+      console.warn("[RX ESP]", e);
+      return false;
+    } finally {
+      rxInFlight = false;
+    }
+  }
+
+  async function handleSync(button) {
+    if (rxInFlight) return;
+    const st = document.getElementById("saveStatusText");
+    const prevText = button.innerText;
+    button.classList.add("confirm");
+    button.innerText = "SYNC...";
+    if (st) {
+      st.innerText = "PULLING FROM ESP...";
+      st.style.color = "#ffaa00";
+    }
+    try {
+      const ok = await pullStateFromEsp();
+      if (ok && st) {
+        st.innerText = "SYNC OK.";
+        st.style.color = "#00e676";
+      }
+      if (!ok && st) {
+        st.innerText = "SYNC FAIL.";
+        st.style.color = "#ff5252";
+      }
+    } catch (e) {
+      if (st) {
+        st.innerText = "SYNC FAIL.";
+        st.style.color = "#ff5252";
+      }
+    } finally {
+      setTimeout(() => {
+        button.classList.remove("confirm");
+        button.innerText = prevText;
+      }, 600);
+    }
+  }
+
   setTab('left');
+  if (ENABLE_ESP_PULL) {
+    pullStateFromEsp();
+    setInterval(pullStateFromEsp, ESP_PULL_MS);
+  }
 </script>
 </body>
 </html>
