@@ -4,13 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=1280, user-scalable=yes" />
   <title>Sound programming</title>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
   <style>
     :root {
       --metal-dark: #1a1510; --metal-light: #443322;
       --rust-accent: #d35400; --text-main: #e0d0b0; 
       --text-dim: #776655; --indicator: #ffaa00;
       --crt-green: #66ff66;
+      --font-main: "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      --font-head: "Arial Black", "Segoe UI Semibold", Impact, sans-serif;
+      --font-crt: "Consolas", "Lucida Console", monospace;
 
       --icon-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%23ffaa00'%3E%3Cpath d='M37.8 2.6l1.8 7.1c1.7.5 3.2 1.2 4.7 2.1l6.6-3.2 6 10.4-5.8 4.6c.2.9.3 1.8.3 2.7s-.1 1.8-.3 2.7l5.8 4.6-6 10.4-6.6-3.2c-1.5.9-3.1 1.6-4.7 2.1l-1.8 7.1H26.2l-1.8-7.1c-1.7-.5-3.2-1.2-4.7-2.1l-6.6 3.2-6-10.4 5.8-4.6c-.2-.9-.3-1.8-.3-2.7s.1-1.8.3-2.7l-5.8-4.6 6-10.4 6.6 3.2c1.5-.9 3.1 1.6 4.7 2.1l1.8-7.1h11.6z'/%3E%3Cpath d='M32 42.5c-5.8 0-10.5-4.7-10.5-10.5S26.2 21.5 32 21.5 42.5 26.2 42.5 32 37.8 42.5 32 42.5zm0-6c2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5-4.5 2-4.5 4.5 2 4.5 4.5 4.5z'/%3E%3C/g%3E%3C/svg%3E");
 
@@ -23,7 +25,7 @@
       background-color: #110500;
       background-image: var(--bg-noise), linear-gradient(to bottom, #2a1a10, #000000);
       color: #aaa; margin: 0; height: 100dvh; width: 100%;
-      font-family: 'Special Elite', monospace; font-size: 14px; overflow: hidden; display: flex; flex-direction: column;
+      font-family: var(--font-main); font-size: 14px; overflow: hidden; display: flex; flex-direction: column;
     }
     .app { display: flex; flex: 1; overflow: hidden; position: relative; }
 
@@ -34,9 +36,9 @@
     .brand { border: 2px solid #442200; padding: 10px 5px; background: #2a150a; text-align: center; margin-bottom: 10px; }
     .brand::before { content: ''; width: 24px; height: 24px; display: block; margin: 0 auto 5px auto; background-image: var(--icon-gear); background-size: contain; background-repeat: no-repeat; opacity: 0.7; filter: sepia(100%) hue-rotate(-30deg); animation: spin 10s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
-    .brand div:last-child { font-size: 16px; color: var(--indicator); font-family: 'Black Ops One'; }
+    .brand div:last-child { font-size: 16px; color: var(--indicator); font-family: var(--font-head); }
     
-    .nav-btn { width: 60px; height: 60px; background: #221105; border: 2px solid #331100; border-radius: 50%; color: #775544; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Special Elite'; font-weight: bold; font-size: 11px; transition: all 0.1s; }
+    .nav-btn { width: 60px; height: 60px; background: #221105; border: 2px solid #331100; border-radius: 50%; color: #775544; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--font-main); font-weight: bold; font-size: 11px; transition: all 0.1s; }
     .nav-btn.active { color: var(--indicator); border-color: var(--rust-accent); background: #331100; box-shadow: 0 0 10px rgba(255, 100, 0, 0.2); }
 
     .main { flex: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
@@ -44,12 +46,12 @@
     .vu-container { display: flex; gap: 8px; }
     .vu-meter { width: 40px; height: 25px; background: #000; border: 1px solid #442200; border-radius: 4px 4px 0 0; position: relative; overflow: hidden; }
     .vu-needle { width: 30px; height: 2px; background: #d35400; position: absolute; bottom: 2px; left: 4px; transform-origin: 0% 50%; transform: rotate(-45deg); will-change: transform; }
-    .page-title { font-family: 'Black Ops One'; font-size: 18px; color: #a88; flex: 1; text-align: center; text-shadow: 1px 1px 0 #000; }
+    .page-title { font-family: var(--font-head); font-size: 18px; color: #a88; flex: 1; text-align: center; text-shadow: 1px 1px 0 #000; }
     
     .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 15px; padding-bottom: 80px; background-color: #0d0502; }
     .footer-status { height: 60px; background: #1a100a; border-top: 3px solid #331100; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0; width: 100%; z-index: 5; }
-    #saveStatusText { color: #886644; font-family: 'Black Ops One'; font-size: 14px; }
-    .save-btn { background: #331100; color: #ccc; font-family: 'Black Ops One'; font-size: 14px; padding: 10px 20px; border: 2px solid #552200; cursor: pointer; }
+    #saveStatusText { color: #886644; font-family: var(--font-head); font-size: 14px; }
+    .save-btn { background: #331100; color: #ccc; font-family: var(--font-head); font-size: 14px; padding: 10px 20px; border: 2px solid #552200; cursor: pointer; }
     .save-btn.confirm { background: #d35400; color: #000; border-color: #ffaa00; }
     .footer-actions { display: flex; gap: 8px; align-items: center; }
     @keyframes simple-shake { 0% { transform: translate(1px, 0); } 50% { transform: translate(-1px, 0); } 100% { transform: translate(0, 0); } }
@@ -67,12 +69,15 @@
     .col-right { flex: 6; display: flex; flex-direction: column; }
 
     .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
-    .grid-log { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; height: 100%; align-items: stretch; }
+    .grid-log { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; align-items: stretch; }
     .log-left, .log-right { display: flex; flex-direction: column; gap: 15px; min-width: 0; }
-    .log-left .module-card, .log-right .module-card { flex: 1; min-height: 0; }
+    .log-left .module-card, .log-right .module-card { flex: 0 0 auto; min-height: 0; }
+    .log-right .module-card { flex: 1 1 auto; }
+    .log-container { flex: 1; min-height: 0; overflow-y: auto; }
+    .log-entry { color: #d7d2c8; line-height: 1.35; }
 
     .module-card { background-color: #1e1612; border: 2px solid #332211; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; flex: 1; }
-    .module-head { background: #2a1e18; padding: 8px 15px; border-bottom: 2px solid #332211; font-family: 'Black Ops One'; font-size: 13px; display: flex; justify-content: space-between; color: #bca; }
+    .module-head { background: #2a1e18; padding: 8px 15px; border-bottom: 2px solid #332211; font-family: var(--font-head); font-size: 13px; display: flex; justify-content: space-between; color: #bca; }
     .module-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; flex: 1; }
     .sub-box { border: 1px solid #332211; background: #16100c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
     .sub-box + .sub-box { margin-top: 10px; }
@@ -88,23 +93,23 @@
       background: #2a1e18;
       padding: 8px 15px;
       border-bottom: 2px solid #332211;
-      font-family: 'Black Ops One';
+      font-family: var(--font-head);
       font-size: 13px;
       display: flex;
       justify-content: space-between;
       color: #bca;
     }
     .preset-body { padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; }
-    .preset-hint { font-size: 11px; color: #776655; font-family: 'Special Elite'; }
+    .preset-hint { font-size: 11px; color: #776655; font-family: var(--font-main); }
 
     .row-ctrl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
     .ctrl-label { color: #998877; font-size: 13px; width: 95px; font-weight: bold; display: flex; flex-direction: column; border-left: 3px solid #663300; padding-left: 5px; }
     .range-info { font-size: 9px; color: #664433; font-family: monospace; }
     .val-wrapper { display: flex; align-items: center; justify-content: flex-end; width: 85px; }
     
-    select, input[type=text], input[type=password], input[type=number] { background: #110500; color: var(--indicator); border: 1px solid #442211; padding: 4px; width: 100%; font-family: 'Special Elite'; text-align: center; outline: none; }
+    select, input[type=text], input[type=password], input[type=number] { background: #110500; color: var(--indicator); border: 1px solid #442211; padding: 4px; width: 100%; font-family: var(--font-main); text-align: center; outline: none; }
     .param-input { font-size: 13px !important; color: #bca !important; background: #221105 !important; margin-bottom: 5px; }
-    input.val-disp-input { font-family: 'Black Ops One'; font-size: 18px; color: var(--indicator); background: #000; border: 1px solid #331100; width: 100%; text-align: right; padding-right: 5px; }
+    input.val-disp-input { font-family: var(--font-head); font-size: 18px; color: var(--indicator); background: #000; border: 1px solid #331100; width: 100%; text-align: right; padding-right: 5px; }
     .unit-label { font-size: 10px; color: #665544; font-weight: bold; margin-left: 3px; font-family: sans-serif; }
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
@@ -120,7 +125,7 @@
         box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
     }
     .mode-label {
-        font-family: 'Black Ops One'; font-size: 12px; color: #443322;
+        font-family: var(--font-head); font-size: 12px; color: #443322;
         transition: all 0.3s; flex: 1; text-align: center;
         text-shadow: none;
     }
@@ -157,16 +162,48 @@
     .v-fader-cap { position: absolute; left: 50%; width: 36px; height: 24px; background: #553322; border: 1px solid #000; border-radius: 2px; transform: translate(-50%, 50%); z-index: 5; background-image: linear-gradient(to bottom, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
     .cap-sub .v-fader-cap { background-color: #661111; border-color: #992222; } .cap-mic .v-fader-cap { background-color: #333; border-color: #555; }
 
-    .crt-monitor { background: #000; border: 2px solid #333; border-radius: 4px; font-family: 'VT323', monospace; padding: 10px; color: var(--crt-green); flex: 1; overflow: hidden; }
+    .crt-monitor { background: #000; border: 2px solid #333; border-radius: 4px; font-family: var(--font-crt); padding: 10px; color: var(--crt-green); flex: 1; overflow: hidden; }
 
     @media (max-width: 1024px) {
       .content { padding: 10px; padding-bottom: 75px; } .grid-lr { flex-direction: column; display: block; }
       .col-left, .col-right { width: 100%; min-width: 0; display: flex; flex-direction: column; }
-      .grid-log { grid-template-columns: 1fr; height: auto; }
+      .grid-log { grid-template-columns: 1fr; height: auto; align-items: start; }
       .log-left, .log-right { width: 100%; }
+      .log-left .module-card, .log-right .module-card { flex: 0 0 auto; }
+      .log-right .module-card { min-height: clamp(220px, 45vh, 360px); }
       .sidebar { width: 65px; } .nav-btn { width: 50px; height: 50px; font-size: 10px; }
     }
   </style>
+  <script>
+    (function () {
+      if (!navigator.onLine) return;
+      const h = window.location.hostname || "";
+      if (h === "192.168.4.1" || h.startsWith("192.168.4.")) return;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=VT323&display=swap";
+
+      let applied = false;
+      function applyOnlineFonts() {
+        if (applied) return;
+        applied = true;
+        const root = document.documentElement;
+        root.style.setProperty("--font-main", "\"Special Elite\", \"Trebuchet MS\", \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif");
+        root.style.setProperty("--font-head", "\"Black Ops One\", \"Arial Black\", \"Segoe UI Semibold\", Impact, sans-serif");
+        root.style.setProperty("--font-crt", "\"VT323\", \"Consolas\", \"Lucida Console\", monospace");
+      }
+
+      link.onload = applyOnlineFonts;
+      link.onerror = function () { /* keep local fallback fonts */ };
+      document.head.appendChild(link);
+
+      setTimeout(function () {
+        if (!applied && link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      }, 1500);
+    })();
+  </script>
 </head>
 <body>
 
@@ -315,7 +352,7 @@ function normalizeType(t) {
              echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
              feedback: { q: 5.0, enable: true, thresh: 50, cut: 50, sens: 50, shift: 5, shiftEnable: true } },
     wifi:  { ssid: '', pass: '' },
-    system:{ marqueeMs: 12, audioDelayMs: 0 },
+    system:{ marqueeMs: 12, audioDelayMs: 0, barsDelayMs: 20 },
     info:  ""
   };
 
@@ -355,6 +392,7 @@ function normalizeType(t) {
   if (!appData.system || typeof appData.system !== "object") appData.system = deepClone(defaultData.system);
   appData.system.marqueeMs = Number(appData.system.marqueeMs ?? defaultData.system.marqueeMs);
   appData.system.audioDelayMs = Number(appData.system.audioDelayMs ?? defaultData.system.audioDelayMs);
+  appData.system.barsDelayMs = Number(appData.system.barsDelayMs ?? defaultData.system.barsDelayMs);
 
   function ensureChannel(key) {
     if (!appData[key] || typeof appData[key] !== "object") appData[key] = deepClone(defaultData[key]);
@@ -433,7 +471,8 @@ function normalizeType(t) {
     system() {
       return {
         marqueeMs: Number(appData.system.marqueeMs),
-        audioDelayMs: Number(appData.system.audioDelayMs)
+        audioDelayMs: Number(appData.system.audioDelayMs),
+        barsDelayMs: Number(appData.system.barsDelayMs)
       };
     },
 
@@ -689,10 +728,7 @@ function normalizeType(t) {
       if (data.freq !== undefined) target.freq = Number(data.freq);
       if (data.vol !== undefined) target.vol = Number(data.vol);
     } else if (type === 'mic') {
-      if (data.micVol) {
-        if (data.micVol.m1 !== undefined) appData.mic.mic1.vol = Number(data.micVol.m1);
-        if (data.micVol.m2 !== undefined) appData.mic.mic2.vol = Number(data.micVol.m2);
-      }
+      // Keep MIC INPUT 1/2 manual: preset does not override GAIN/LO/MID/HI.
       const fxMix = Number(appData.mic.echo?.drywet ?? appData.mic.reverb?.drywet ?? 30);
       if (data.reverb) {
         const { drywet, ...reverbNoMix } = data.reverb;
@@ -1101,6 +1137,11 @@ function normalizeType(t) {
       () => Tx.mark('system', 'live'),
       () => Tx.mark('system', 'final')
     ));
+    sysRack.body.appendChild(createSlider('BAR CHART DELAY', sys.barsDelayMs, 5, 80, 1, 'ms',
+      v => { appData.system.barsDelayMs = v; markDirty(); },
+      () => Tx.mark('system', 'live'),
+      () => Tx.mark('system', 'final')
+    ));
     colLeft.appendChild(sysRack.el);
 
     const colRight = document.createElement('div');
@@ -1474,6 +1515,7 @@ function normalizeType(t) {
 
     appData.system.marqueeMs = roundStep(numOr(appData.system.marqueeMs, data["log-marquee-ms"]), 1);
     appData.system.audioDelayMs = roundStep(numOr(appData.system.audioDelayMs, data["log-audio-delay-ms"]), 1);
+    appData.system.barsDelayMs = roundStep(numOr(appData.system.barsDelayMs, data["log-bars-delay-ms"]), 1);
 
     for (let i = 1; i <= 6; i++) {
       const li = i - 1;
@@ -1557,3 +1599,4 @@ function normalizeType(t) {
 </script>
 </body>
 </html>
+
