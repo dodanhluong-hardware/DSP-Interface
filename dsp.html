@@ -165,6 +165,31 @@
     .v-fader-track { width: 12px; flex: 1; min-height: 150px; background: #000; border: 1px solid #332211; position: relative; margin: 10px 0; touch-action: none; }
     .v-fader-cap { position: absolute; left: 50%; width: 36px; height: 24px; background: #553322; border: 1px solid #000; border-radius: 2px; transform: translate(-50%, 50%); z-index: 5; background-image: linear-gradient(to bottom, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
     .cap-sub .v-fader-cap { background-color: #661111; border-color: #992222; } .cap-mic .v-fader-cap { background-color: #333; border-color: #555; }
+    .sub-grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; width: 100%; }
+    .sub-top-row { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; width: 100%; }
+    .sub-controls-col { display: grid; gap: 12px; width: 100%; max-width: 100%; }
+    .sub-section {
+      border: 1px solid #3b2416;
+      background: linear-gradient(180deg, #1a100b 0%, #130c08 100%);
+      box-shadow: inset 0 0 0 1px #25160f, 0 0 0 1px #0a0503;
+      padding: 10px 12px;
+    }
+    .sub-section-title {
+      font-family: var(--font-head);
+      font-size: 12px;
+      color: #b28a54;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .sub-section .row-ctrl { margin-bottom: 10px; }
+    .sub-section .row-ctrl:last-child { margin-bottom: 0; }
+    .sub-section .ctrl-label { width: 110px; }
+    .sub-route-row { display: flex; align-items: center; justify-content: space-between; }
+    .sub-route-row .ctrl-label { margin-bottom: 0; }
+    .sub-meters .ctrl-label { width: 95px; }
+    .sub-band-grid { grid-template-columns: 1fr 1fr; margin-top: 14px; }
+    .sub-plot .eq-plot { height: 210px; }
 
     .crt-monitor { background: #000; border: 2px solid #333; border-radius: 4px; font-family: var(--font-crt); padding: 10px; color: var(--crt-green); flex: 1; overflow: hidden; }
 
@@ -176,6 +201,9 @@
       .log-left .module-card, .log-right .module-card { flex: 0 0 auto; }
       .log-right .module-card { min-height: clamp(220px, 45vh, 360px); }
       .sidebar { width: 65px; } .nav-btn { width: 50px; height: 50px; font-size: 10px; }
+      .sub-grid-two { grid-template-columns: 1fr; }
+      .sub-band-grid { grid-template-columns: 1fr; }
+      .sub-plot .eq-plot { height: 190px; }
     }
   </style>
   <script>
@@ -618,11 +646,15 @@ function normalizeType(t) {
       "speech": { name: "BROADCAST (Speech)", data: { bands: [{f:90,g:-4,q:0.8,t:"LS"},{f:240,g:-3,q:1.3,t:"PEAK"},{f:1100,g:3,q:1.1,t:"PEAK"},{f:2800,g:4,q:1.0,t:"PEAK"},{f:6500,g:2,q:1.2,t:"PEAK"},{f:12000,g:-1,q:0.8,t:"HS"}], loudness: { on: true, thresh: -48, maxGain: 3.0, freq: 80 } } }
     },
     sub: {
-      "music": { name: "HYDRAULIC PUMP (Music)", data: { freq: 90, vol: -5 } },
-      "movie": { name: "PILE DRIVER (Movie)", data: { freq: 60, vol: 0 } },
-      "punch": { name: "PISTON STRIKE (Punchy)", data: { freq: 120, vol: 2 } },
-      "tight": { name: "TIGHT KICK (Fast)", data: { freq: 95, vol: -8 } },
-      "deep":  { name: "DEEP RUMBLE (Low)", data: { freq: 55, vol: -2 } }
+      "flat":      { name: "SUB FLAT (Neutral)", data: { freq: 90,  bands: [{t:'lowpass', f:90,  g:0,  q:0.707},{t:'peak', f:50,  g:0,  q:6}] } },
+      "deep":      { name: "DEEP RUMBLE (Low)", data: { freq: 65,  bands: [{t:'lowpass', f:65,  g:0,  q:0.75},{t:'peak', f:42,  g:3,  q:5}] } },
+      "punch":     { name: "PUNCHY SUB (Punch)", data: { freq: 105, bands: [{t:'lowpass', f:105, g:0,  q:0.8},{t:'peak', f:72,  g:4,  q:4}] } },
+      "tight":     { name: "TIGHT RESPONSE (Tight)", data: { freq: 95,  bands: [{t:'lowpass', f:95,  g:-1, q:0.9},{t:'notch',f:63,  g:-3, q:6}] } },
+      "warm":      { name: "WARM BASS (Warm)", data: { freq: 80,  bands: [{t:'lowpass', f:80,  g:0,  q:0.8},{t:'peak', f:88,  g:2,  q:3}] } },
+      "vocalpop":  { name: "VOCAL POP (Clean)", data: { freq: 85,  bands: [{t:'lowpass', f:85,  g:-1, q:0.75},{t:'notch',f:56,  g:-2, q:5}] } },
+      "edm":       { name: "EDM CLUB (Heavy)", data: { freq: 100, bands: [{t:'lowpass', f:100, g:0,  q:0.85},{t:'peak', f:48,  g:5,  q:4}] } },
+      "acoustic":  { name: "ACOUSTIC BASS (Natural)", data: { freq: 78,  bands: [{t:'lowpass', f:78,  g:0,  q:0.7},{t:'peak', f:95,  g:1,  q:2.5}] } },
+      "night":     { name: "NIGHT LISTEN (Soft)", data: { freq: 70,  bands: [{t:'lowpass', f:70,  g:-1, q:0.7},{t:'peak', f:45,  g:2,  q:3.5}] } }
     },
     mic: {
       "speech":  { name: "INTERCOM (Speech)", data: { micVol: { m1: 84, m2: 84 }, reverb: { gain: 24, pre: 0, decay: 10, room: 30, damp: 55 }, echo: { gain: 14, repeat: 8, delay: 90 }, feedback: { q: 5.5, enable: true, thresh: 60, cut: 58, sens: 52, shift: 5, shiftEnable: true } } },
@@ -638,7 +670,7 @@ function normalizeType(t) {
   const defaultData = {
     left:  { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
     right: { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
-    sub:   { sub1: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true }, sub2: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true } },
+    sub:   { sub1: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true, bands: [{t:'lowpass', f:90, g:0, q:0.707},{t:'peak', f:50, g:0, q:30}] }, sub2: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true, bands: [{t:'lowpass', f:90, g:0, q:0.707},{t:'peak', f:50, g:0, q:30}] } },
     mic:   { mic1: { tones: [0,0,0], vol: 80 }, mic2: { tones: [0,0,0], vol: 80 },
              reverb: { ...GLOBAL_PRESETS.mic.karaoke.data.reverb },
              echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
@@ -665,6 +697,11 @@ function normalizeType(t) {
   if (!appData.sub) appData.sub = deepClone(defaultData.sub);
   if (!appData.sub.sub1) appData.sub.sub1 = deepClone(defaultData.sub.sub1);
   if (!appData.sub.sub2) appData.sub.sub2 = deepClone(defaultData.sub.sub2);
+  // Ensure SUB bands exist (2 bands per SUB) and normalize
+  if (!Array.isArray(appData.sub.sub1.bands) || appData.sub.sub1.bands.length !== 2) appData.sub.sub1.bands = deepClone(defaultData.sub.sub1.bands);
+  if (!Array.isArray(appData.sub.sub2.bands) || appData.sub.sub2.bands.length !== 2) appData.sub.sub2.bands = deepClone(defaultData.sub.sub2.bands);
+  appData.sub.sub1.bands = appData.sub.sub1.bands.map((b) => ({ t: normalizeType(b.t), f: Number(b.f || 0), g: Number(b.g || 0), q: Number(b.q || 1) }));
+  appData.sub.sub2.bands = appData.sub.sub2.bands.map((b) => ({ t: normalizeType(b.t), f: Number(b.f || 0), g: Number(b.g || 0), q: Number(b.q || 1) }));
 
   if (!appData.mic) appData.mic = deepClone(defaultData.mic);
   if (!appData.mic.mic1) appData.mic.mic1 = deepClone(defaultData.mic.mic1);
@@ -743,9 +780,26 @@ function normalizeType(t) {
       };
     },
     sub() {
+      const s1Bands = (Array.isArray(appData.sub.sub1.bands) ? appData.sub.sub1.bands : []).map((b) => ({
+        t: normalizeType(b?.t),
+        f: Number(b?.f),
+        g: Number(b?.g),
+        q: Number(b?.q)
+      }));
+      const s2Bands = (Array.isArray(appData.sub.sub2.bands) ? appData.sub.sub2.bands : []).map((b) => ({
+        t: normalizeType(b?.t),
+        f: Number(b?.f),
+        g: Number(b?.g),
+        q: Number(b?.q)
+      }));
+
+      const s1X = Number((s1Bands[0] && Number.isFinite(s1Bands[0].f)) ? s1Bands[0].f : appData.sub.sub1.freq);
+      const s2X = Number((s2Bands[0] && Number.isFinite(s2Bands[0].f)) ? s2Bands[0].f : appData.sub.sub2.freq);
+
       return {
-        xover: { S1: Number(appData.sub.sub1.freq), S2: Number(appData.sub.sub2.freq) },
-        mono:  { S1: appData.sub.sub1.isMono ? 1 : 0, S2: appData.sub.sub2.isMono ? 1 : 0 }
+        xover: { S1: s1X, S2: s2X },
+        mono:  { S1: appData.sub.sub1.isMono ? 1 : 0, S2: appData.sub.sub2.isMono ? 1 : 0 },
+        bands: { S1: s1Bands, S2: s2Bands }
       };
     },
     micTone() {
@@ -1017,6 +1071,9 @@ function normalizeType(t) {
       if (data.loudness) target.loudness = { ...target.loudness, ...data.loudness };
   } else if (type === 'sub') {
       const target = appData.sub[targetKey];
+      if (data.bands && Array.isArray(data.bands)) {
+        target.bands = deepClone(data.bands).map(b => ({...b, t: normalizeType(b.t), f: Number(b.f), g: Number(b.g), q: Number(b.q)}));
+      }
       if (data.freq !== undefined) target.freq = Number(data.freq);
       // Keep SUB A/B volume manual: preset does not override magnitude (vol).
     } else if (type === 'mic') {
@@ -1213,7 +1270,8 @@ function normalizeType(t) {
           bestIdx = i;
         }
       }
-      return bestIdx;
+      if (bestDist2 <= eqHitRadiusPx * eqHitRadiusPx) return bestIdx;
+      return -1;
     };
 
     const onEqDragMove = (evt) => {
@@ -1246,6 +1304,7 @@ function normalizeType(t) {
     eqCanvas.addEventListener('pointerdown', (evt) => {
       const pos = getCanvasPos(evt);
       const idx = pickEqBand(pos.x, pos.y, pos.w, pos.h);
+      if (idx < 0) return;
       dragEqIndex = idx;
       setDragScrollLock(true);
       if (typeof eqCanvas.setPointerCapture === 'function') {
@@ -1391,7 +1450,7 @@ function normalizeType(t) {
 
   function renderSub() {
     const container = document.createElement('div');
-    container.className = 'grid-2col';
+    container.className = 'sub-grid-two';
 
     const subs = [
       { id: 'sub1', label: 'SUBWOOFER A', model: 'LFE OUT 1' },
@@ -1401,87 +1460,192 @@ function normalizeType(t) {
     subs.forEach(s => {
       const data = appData.sub[s.id];
       const rack = createModule(s.label, s.model, 'module-fill');
-
       rack.body.innerHTML = '';
       rack.body.appendChild(createPresetUI('sub', s.id));
 
-      const toggleRow = document.createElement('div');
-      toggleRow.className = 'toggle-row';
+      const topRow = document.createElement('div');
+      topRow.className = 'sub-top-row';
 
-      const lblStereo = document.createElement('div');
-      lblStereo.className = `mode-label ${!data.isMono ? 'active' : ''}`;
-      lblStereo.innerText = 'STEREO';
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'eq-plot-wrap sub-plot';
+      canvasWrap.style.width = '100%';
+      canvasWrap.style.maxWidth = '100%';
+      canvasWrap.style.alignSelf = 'stretch';
+      canvasWrap.style.display = 'flex';
+      canvasWrap.style.flexDirection = 'column';
+      canvasWrap.innerHTML = '<div class="eq-plot-head"><span>SUB RESPONSE</span><span>20Hz - 20kHz</span></div>';
+      const cvs = document.createElement('canvas');
+      cvs.className = 'eq-plot';
+      canvasWrap.appendChild(cvs);
+      topRow.appendChild(canvasWrap);
 
-      const labelSw = document.createElement('label');
-      labelSw.className = 'switch';
-      const inputSw = document.createElement('input');
-      inputSw.type = 'checkbox';
-      inputSw.checked = !!data.isMono;
-      const spanSlider = document.createElement('span');
-      spanSlider.className = 'slider';
-      labelSw.appendChild(inputSw);
-      labelSw.appendChild(spanSlider);
+      // Place MONO/STEREO, INVERT PHASE, GAIN and DELAY in four rows next to the plot
+      const controlsColumn = document.createElement('div');
+      controlsColumn.className = 'sub-controls-col';
+      controlsColumn.style.marginTop = '0';
+      controlsColumn.style.alignSelf = 'stretch';
+      controlsColumn.style.justifyItems = 'stretch';
 
-      const lblMono = document.createElement('div');
-      lblMono.className = `mode-label ${data.isMono ? 'active' : ''}`;
-      lblMono.innerText = 'MONO';
+      const routeSection = document.createElement('div');
+      routeSection.className = 'sub-section';
+      routeSection.innerHTML = '<div class="sub-section-title">Routing</div>';
 
+      const levelSection = document.createElement('div');
+      levelSection.className = 'sub-section sub-meters';
+      levelSection.innerHTML = '<div class="sub-section-title">Level</div>';
+
+      const monoControl = document.createElement('div');
+      monoControl.className = 'row-ctrl sub-route-row';
+      monoControl.style.display = 'flex';
+      monoControl.style.alignItems = 'center';
+      monoControl.style.justifyContent = 'space-between';
+      const monoLabel = document.createElement('div');
+      monoLabel.className = 'ctrl-label';
+      monoLabel.style.marginBottom = '0';
+      monoLabel.innerHTML = 'MODE';
+      const monoSwitchWrap = document.createElement('div');
+      monoSwitchWrap.style.display = 'flex';
+      monoSwitchWrap.style.alignItems = 'center';
+      monoSwitchWrap.style.gap = '8px';
+      const lblStereo = document.createElement('span'); lblStereo.className = `mode-label ${!data.isMono ? 'active' : ''}`; lblStereo.innerText = 'STEREO';
+      const labelSw = document.createElement('label'); labelSw.className = 'switch';
+      const inputSw = document.createElement('input'); inputSw.type = 'checkbox'; inputSw.checked = !!data.isMono;
+      const spanSlider = document.createElement('span'); spanSlider.className = 'slider'; labelSw.appendChild(inputSw); labelSw.appendChild(spanSlider);
+      const lblMono = document.createElement('span'); lblMono.className = `mode-label ${data.isMono ? 'active' : ''}`; lblMono.innerText = 'MONO';
       inputSw.onchange = () => {
         data.isMono = inputSw.checked;
         if (inputSw.checked) { lblMono.classList.add('active'); lblStereo.classList.remove('active'); }
         else { lblMono.classList.remove('active'); lblStereo.classList.add('active'); }
-        markDirty();
-        Tx.mark('sub', 'final');
+        markDirty(); Tx.mark('sub', 'final');
       };
+      monoSwitchWrap.appendChild(lblStereo);
+      monoSwitchWrap.appendChild(labelSw);
+      monoSwitchWrap.appendChild(lblMono);
+      monoControl.appendChild(monoLabel);
+      monoControl.appendChild(monoSwitchWrap);
+      routeSection.appendChild(monoControl);
 
-      toggleRow.appendChild(lblStereo);
-      toggleRow.appendChild(labelSw);
-      toggleRow.appendChild(lblMono);
-      rack.body.appendChild(toggleRow);
-
-      const phaseRow = document.createElement('div');
-      phaseRow.className = 'row-ctrl';
-      phaseRow.innerHTML = `<div class="ctrl-label">INVERT PHASE</div>`;
+      const phaseControl = document.createElement('div');
+      phaseControl.className = 'row-ctrl sub-route-row';
+      phaseControl.style.display = 'flex';
+      phaseControl.style.alignItems = 'center';
+      phaseControl.style.justifyContent = 'space-between';
+      const phaseLabel = document.createElement('div');
+      phaseLabel.className = 'ctrl-label';
+      phaseLabel.style.marginBottom = '0';
+      phaseLabel.innerHTML = 'INVERT PHASE';
       const phaseCheck = document.createElement('input');
       phaseCheck.type = 'checkbox';
       phaseCheck.className = 'std-checkbox';
       phaseCheck.checked = !!data.phase;
-      phaseCheck.onchange = () => {
-        data.phase = phaseCheck.checked;
-        markDirty();
-        Tx.mark('phase', 'final');
-      };
-      phaseRow.appendChild(phaseCheck);
-      rack.body.appendChild(phaseRow);
+      phaseCheck.onchange = () => { data.phase = phaseCheck.checked; markDirty(); Tx.mark('phase', 'final'); };
+      phaseControl.appendChild(phaseLabel);
+      phaseControl.appendChild(phaseCheck);
+      routeSection.appendChild(phaseControl);
 
-      rack.body.appendChild(createSlider('DELAY', data.delay, 0, 50, 0.5, 'ms',
+      const gainControl = createSlider('GAIN', data.vol, -60, 6, 0.5, 'dB',
+        v => { data.vol = v; markDirty(); },
+        () => Tx.mark('gain', 'live'),
+        () => Tx.mark('gain', 'final')
+      );
+      gainControl.style.marginBottom = '0';
+      levelSection.appendChild(gainControl);
+
+      const delayControl = createSlider('DELAY', data.delay, 0, 50, 0.5, 'ms',
         v => { data.delay = v; markDirty(); },
         () => Tx.mark('delay', 'live'),
         () => Tx.mark('delay', 'final')
-      ));
+      );
+      delayControl.style.marginBottom = '0';
+      levelSection.appendChild(delayControl);
 
-      const vContainer = document.createElement('div');
-      vContainer.className = 'eq-grid';
-      vContainer.style.marginTop = '25px';
-      vContainer.style.gridTemplateColumns = '1fr 1fr';
+      controlsColumn.appendChild(routeSection);
+      controlsColumn.appendChild(levelSection);
 
-      vContainer.appendChild(createSimpleStrip(
-        'X-OVER', data.freq,
-        v => { data.freq = v; markDirty(); },
-        () => Tx.mark('sub', 'live'),
-        () => Tx.mark('sub', 'final'),
-        '', 20, 250, 1, 'Hz', 'cap-sub'
-      ));
+      topRow.appendChild(controlsColumn);
+      rack.body.appendChild(topRow);
 
-      vContainer.appendChild(createSimpleStrip(
-        'GAIN', data.vol,
-        v => { data.vol = v; markDirty(); },
-        () => Tx.mark('gain', 'live'),
-        () => Tx.mark('gain', 'final'),
-        '', -60, 6, 0.5, 'dB', 'cap-sub'
-      ));
+      // Band controls (2 bands)
+      const bandGrid = document.createElement('div'); bandGrid.className = 'eq-grid sub-band-grid';
+      if (!Array.isArray(data.bands) || data.bands.length !== 2) data.bands = deepClone(defaultData.sub[s.id].bands);
+      const updatePlot = () => drawEqResponse(cvs, data.bands, 48000);
+      const bandStrips = [];
+      data.bands.forEach((band, idx) => {
+        const strip = createComplexStrip(band, idx, () => { markDirty(); updatePlot(); }, (isFinal) => { if (isFinal) Tx.mark('sub', 'final'); else Tx.mark('sub', 'live'); });
+        bandStrips.push(strip);
+        bandGrid.appendChild(strip);
+      });
+      rack.body.appendChild(bandGrid);
 
-      rack.body.appendChild(vContainer);
+      requestAnimationFrame(() => updatePlot());
+
+      // Pointer drag support for SUB canvas (drag band points to change f/g)
+      (function() {
+        let dragIdx = -1;
+        const eqHitRadiusPx = 30;
+
+        const getCanvasPos = (evt) => {
+          const rect = cvs.getBoundingClientRect();
+          return {
+            x: clamp((evt.clientX - rect.left), 0, rect.width),
+            y: clamp((evt.clientY - rect.top), 0, rect.height),
+            w: rect.width,
+            h: rect.height
+          };
+        };
+
+        const pickEqBand = (x, y, w, h) => {
+          let best = -1; let bestD2 = Number.POSITIVE_INFINITY;
+          for (let i = 0; i < data.bands.length; i++) {
+            const b = data.bands[i];
+            const bx = eqFreqToX(b.f, w);
+            const by = eqDbToY(b.g, h);
+            const dx = bx - x; const dy = by - y; const d2 = dx*dx + dy*dy;
+            if (d2 < bestD2) { bestD2 = d2; best = i; }
+          }
+          if (bestD2 <= eqHitRadiusPx*eqHitRadiusPx) return best; return -1;
+        };
+
+        const onMove = (evt) => {
+          if (dragIdx < 0) return;
+          const pos = getCanvasPos(evt);
+          const b = data.bands[dragIdx];
+          if (!b) return;
+          b.f = eqXToFreq(pos.x, pos.w);
+          b.g = Math.round(eqYToDb(pos.y, pos.h) * 10) / 10;
+          const strip = bandStrips[dragIdx];
+          if (strip && typeof strip.refreshFromBand === 'function') {
+            strip.refreshFromBand();
+          }
+          markDirty();
+          updatePlot();
+          Tx.mark('sub', 'live');
+          evt.preventDefault();
+        };
+
+        const stopDrag = () => {
+          if (dragIdx < 0) return;
+          const idx = dragIdx; dragIdx = -1; setDragScrollLock(false);
+          Tx.mark('sub', 'final');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', stopDrag);
+          window.removeEventListener('pointercancel', stopDrag);
+        };
+
+        cvs.addEventListener('pointerdown', (evt) => {
+          const pos = getCanvasPos(evt);
+          const idx = pickEqBand(pos.x, pos.y, pos.w, pos.h);
+          if (idx < 0) return;
+          dragIdx = idx;
+          setDragScrollLock(true);
+          if (typeof cvs.setPointerCapture === 'function') cvs.setPointerCapture(evt.pointerId);
+          window.addEventListener('pointermove', onMove, { passive: false });
+          window.addEventListener('pointerup', stopDrag);
+          window.addEventListener('pointercancel', stopDrag);
+          evt.preventDefault();
+        });
+      })();
+
       container.appendChild(rack.el);
     });
 
@@ -1725,6 +1889,18 @@ function normalizeType(t) {
       fader.querySelector('.v-fader-cap').style.bottom = pct + '%';
     };
 
+    const refreshFromBand = () => {
+      const fSafe = Math.max(20, Math.min(20000, Number(band.f) || 20));
+      const qSafe = Math.max(0.1, Math.min(20, Number(band.q) || 1));
+      const gSafe = Math.max(-15, Math.min(15, Number(band.g) || 0));
+      fIn.value = fSafe;
+      qIn.value = qSafe;
+      valInput.value = gSafe;
+      const pct = ((gSafe + 15) / 30) * 100;
+      fader.querySelector('.v-fader-cap').style.bottom = pct + '%';
+    };
+    el.refreshFromBand = refreshFromBand;
+
     el.appendChild(fader);
     el.appendChild(valDiv);
     return el;
@@ -1869,6 +2045,32 @@ function normalizeType(t) {
     appData.sub.sub2.phase = boolOr(appData.sub.sub2.phase, data["sub-phase-S2"]);
     appData.sub.sub1.isMono = boolOr(appData.sub.sub1.isMono, data["sub-mono-S1"]);
     appData.sub.sub2.isMono = boolOr(appData.sub.sub2.isMono, data["sub-mono-S2"]);
+
+    // hydrate SUB bands from ESP snapshot if present (keys: subL1f/subL1g/subL1q/subL1t ... subR2*)
+    try {
+      if (!Array.isArray(appData.sub.sub1.bands) || appData.sub.sub1.bands.length !== 2) appData.sub.sub1.bands = deepClone(defaultData.sub.sub1.bands);
+      if (!Array.isArray(appData.sub.sub2.bands) || appData.sub.sub2.bands.length !== 2) appData.sub.sub2.bands = deepClone(defaultData.sub.sub2.bands);
+
+      appData.sub.sub1.bands[0].f = numOr(appData.sub.sub1.bands[0].f, data["subL1f"]);
+      appData.sub.sub1.bands[0].g = numOr(appData.sub.sub1.bands[0].g, data["subL1g"]);
+      appData.sub.sub1.bands[0].q = numOr(appData.sub.sub1.bands[0].q, data["subL1q"]);
+      if (data["subL1t"] !== undefined && data["subL1t"] !== null) appData.sub.sub1.bands[0].t = normalizeType(data["subL1t"]);
+
+      appData.sub.sub1.bands[1].f = numOr(appData.sub.sub1.bands[1].f, data["subL2f"]);
+      appData.sub.sub1.bands[1].g = numOr(appData.sub.sub1.bands[1].g, data["subL2g"]);
+      appData.sub.sub1.bands[1].q = numOr(appData.sub.sub1.bands[1].q, data["subL2q"]);
+      if (data["subL2t"] !== undefined && data["subL2t"] !== null) appData.sub.sub1.bands[1].t = normalizeType(data["subL2t"]);
+
+      appData.sub.sub2.bands[0].f = numOr(appData.sub.sub2.bands[0].f, data["subR1f"]);
+      appData.sub.sub2.bands[0].g = numOr(appData.sub.sub2.bands[0].g, data["subR1g"]);
+      appData.sub.sub2.bands[0].q = numOr(appData.sub.sub2.bands[0].q, data["subR1q"]);
+      if (data["subR1t"] !== undefined && data["subR1t"] !== null) appData.sub.sub2.bands[0].t = normalizeType(data["subR1t"]);
+
+      appData.sub.sub2.bands[1].f = numOr(appData.sub.sub2.bands[1].f, data["subR2f"]);
+      appData.sub.sub2.bands[1].g = numOr(appData.sub.sub2.bands[1].g, data["subR2g"]);
+      appData.sub.sub2.bands[1].q = numOr(appData.sub.sub2.bands[1].q, data["subR2q"]);
+      if (data["subR2t"] !== undefined && data["subR2t"] !== null) appData.sub.sub2.bands[1].t = normalizeType(data["subR2t"]);
+    } catch (e) { /* ignore snapshot mapping errors */ }
 
     appData.mic.mic1.tones[0] = numOr(appData.mic.mic1.tones[0], data["cdsm1"]);
     appData.mic.mic1.tones[1] = numOr(appData.mic.mic1.tones[1], data["cdsm2"]);
