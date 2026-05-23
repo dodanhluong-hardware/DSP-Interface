@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=1280, user-scalable=yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
   <title>Sound programming</title>
   <style>
     :root {
@@ -40,6 +40,7 @@
     
     .nav-btn { width: 60px; height: 60px; background: #221105; border: 2px solid #331100; border-radius: 50%; color: #775544; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--font-main); font-weight: bold; font-size: 11px; transition: all 0.1s; }
     .nav-btn.active { color: var(--indicator); border-color: var(--rust-accent); background: #331100; box-shadow: 0 0 10px rgba(255, 100, 0, 0.2); }
+    .sidebar-spacer { flex: 1; }
 
     .main { flex: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
     .header { height: 65px; background: #1a100a; border-bottom: 3px solid #331100; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
@@ -76,15 +77,17 @@
     .log-container { flex: 1; min-height: 0; overflow-y: auto; }
     .log-entry { color: #d7d2c8; line-height: 1.35; }
 
-    .module-card { background-color: #1e1612; border: 2px solid #332211; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; flex: 1; }
+    .module-card { background-color: #1e1612; border: 2px solid #332211; border-radius: 10px; overflow: hidden; box-shadow: 4px 4px 0 rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; flex: 1; }
     .module-head { background: #2a1e18; padding: 8px 15px; border-bottom: 2px solid #332211; font-family: var(--font-head); font-size: 13px; display: flex; justify-content: space-between; color: #bca; }
     .module-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; flex: 1; }
-    .sub-box { border: 1px solid #332211; background: #16100c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .sub-box { border: 1px solid #332211; border-radius: 8px; background: #16100c; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
     .sub-box + .sub-box { margin-top: 10px; }
 
     .preset-box {
       background-color: #1e1612;
       border: 2px solid #332211;
+      border-radius: 10px;
+      overflow: hidden;
       box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
@@ -158,7 +161,7 @@
 
     .eq-grid { display: grid; gap: 10px; flex: 1; height: 100%; }
     .eq-strip { display: flex; flex-direction: column; align-items: center; justify-content: space-between; border: 1px solid #332211; background: #16100c; padding: 10px 2px; flex: 1; }
-    .eq-plot-wrap { border: 1px solid #332211; background: #0b0705; padding: 8px; margin-bottom: 10px; }
+    .eq-plot-wrap { border: 1px solid #332211; border-radius: 8px; overflow: hidden; background: #0b0705; padding: 8px; margin-bottom: 10px; }
     .eq-plot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: #aa8; font-family: var(--font-head); }
     .eq-plot-head span:last-child { color: #776655; font-family: var(--font-main); font-size: 10px; }
     .eq-plot { width: 100%; height: 190px; display: block; border: 1px solid #22160f; background: #050303; touch-action: none; cursor: crosshair; }
@@ -170,6 +173,7 @@
     .sub-controls-col { display: grid; gap: 12px; width: 100%; max-width: 100%; }
     .sub-section {
       border: 1px solid #3b2416;
+      border-radius: 8px;
       background: linear-gradient(180deg, #1a100b 0%, #130c08 100%);
       box-shadow: inset 0 0 0 1px #25160f, 0 0 0 1px #0a0503;
       padding: 10px 12px;
@@ -204,6 +208,232 @@
       .sub-grid-two { grid-template-columns: 1fr; }
       .sub-band-grid { grid-template-columns: 1fr; }
       .sub-plot .eq-plot { height: 190px; }
+    }
+
+    .collapsible-card .module-head,
+    .collapsible-card .preset-head {
+      position: relative;
+      cursor: pointer;
+      padding-right: 34px;
+    }
+    .collapsible-card .module-head::after,
+    .collapsible-card .preset-head::after {
+      content: "▾";
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%) rotate(0deg);
+      transition: transform 140ms ease;
+      color: #b79062;
+      font-size: 12px;
+    }
+    .collapsible-card.is-collapsed .module-head::after,
+    .collapsible-card.is-collapsed .preset-head::after {
+      transform: translateY(-50%) rotate(-90deg);
+    }
+    .collapsible-card.is-collapsed .module-body,
+    .collapsible-card.is-collapsed .preset-body {
+      display: none !important;
+    }
+    .collapsible-card.is-collapsed {
+      min-height: 0 !important;
+      height: auto !important;
+      flex: 0 0 auto !important;
+    }
+    .collapsible-card.is-collapsed .module-head,
+    .collapsible-card.is-collapsed .preset-head {
+      border-bottom-color: transparent;
+    }
+
+    @media (max-width: 820px) {
+      html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      body {
+        font-size: 13px;
+      }
+      .app {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: 0;
+        border-bottom: 3px solid #331100;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 8px calc(10px + env(safe-area-inset-right)) 8px calc(10px + env(safe-area-inset-left));
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+      .brand {
+        margin: 0 6px 0 0;
+        padding: 6px 5px;
+        min-width: 52px;
+      }
+      .brand::before {
+        width: 18px;
+        height: 18px;
+        margin-bottom: 4px;
+      }
+      .brand div:last-child {
+        font-size: 13px;
+      }
+      .nav-btn {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        font-size: 10px;
+        flex: 0 0 auto;
+      }
+      .sidebar-spacer {
+        display: none;
+      }
+      .main {
+        min-height: 0;
+      }
+      .header {
+        height: 54px;
+        padding: 0 10px;
+      }
+      .vu-meter {
+        width: 34px;
+        height: 22px;
+      }
+      .page-title {
+        font-size: 14px;
+      }
+      .content {
+        padding: 8px calc(12px + env(safe-area-inset-right)) 76px calc(12px + env(safe-area-inset-left));
+        overflow-x: hidden;
+      }
+      .footer-status {
+        height: 56px;
+        padding: 0 calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left));
+      }
+      .save-btn {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+      #saveStatusText {
+        font-size: 12px;
+      }
+      .module-head,
+      .preset-head {
+        font-size: 12px;
+        padding: 8px 10px;
+      }
+      .module-body,
+      .preset-body {
+        padding: 10px;
+        min-width: 0;
+        overflow-x: hidden;
+      }
+      .module-card,
+      .preset-box,
+      .sub-box,
+      .sub-section {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .module-card,
+      .preset-box {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+      }
+      .grid-lr,
+      .grid-2col,
+      .grid-log,
+      .sub-grid-two,
+      .sub-top-row,
+      .sub-controls-col,
+      .col-left,
+      .col-right,
+      .log-left,
+      .log-right {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        gap: 10px;
+        grid-template-rows: auto !important;
+        grid-auto-rows: max-content !important;
+        align-items: start !important;
+      }
+      .row-ctrl {
+        margin-bottom: 10px;
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr) 72px;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        min-width: 0;
+      }
+      .ctrl-label {
+        width: auto;
+        min-width: 0;
+        font-size: 12px;
+      }
+      .val-wrapper {
+        width: 72px;
+        min-width: 0;
+      }
+      input.val-disp-input {
+        font-size: 14px;
+        min-width: 0;
+      }
+      .slider-group {
+        padding: 0 6px;
+        min-width: 0;
+      }
+      .eq-grid {
+        gap: 8px;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        width: 100%;
+        min-width: 0;
+      }
+      .sub-band-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .eq-strip {
+        padding: 8px 2px;
+        min-width: 0;
+      }
+      .eq-strip .val-wrapper {
+        width: 100% !important;
+      }
+      .eq-strip .val-disp-input {
+        width: 100% !important;
+        min-width: 0 !important;
+        font-size: 12px !important;
+      }
+      .v-fader-track {
+        min-height: 128px;
+      }
+      .eq-plot {
+        height: 170px;
+        width: 100%;
+        max-width: 100%;
+      }
+      .grid-log {
+        gap: 10px;
+      }
+      .log-right .module-card {
+        min-height: 0;
+      }
+      select,
+      input[type=text],
+      input[type=password],
+      input[type=number] {
+        max-width: 100%;
+      }
     }
   </style>
   <script>
@@ -246,7 +476,7 @@
     <button class="nav-btn" onclick="setTab('right')" id="btn-right">R</button>
     <button class="nav-btn" onclick="setTab('sub')" id="btn-sub">SUB</button>
     <button class="nav-btn" onclick="setTab('mic')" id="btn-mic">MIC</button>
-    <div style="flex:1"></div>
+    <div class="sidebar-spacer" style="flex:1"></div>
     <button class="nav-btn" onclick="setTab('info')" id="btn-info">LOG</button>
   </div>
 
@@ -1006,6 +1236,64 @@ function normalizeType(t) {
   const content = document.getElementById('content');
   const pageTitle = document.getElementById('pageTitle');
   const navBtns = document.querySelectorAll('.nav-btn');
+  const mobileCollapseMq = window.matchMedia("(max-width: 820px)");
+  const moduleCollapseState = Object.create(null);
+
+  function collapseKey(card, idx) {
+    const head = card.querySelector('.module-head, .preset-head');
+    const title = head && head.firstElementChild ? head.firstElementChild.textContent.trim() : String(idx);
+    return `${currentTab}:${idx}:${title}`;
+  }
+
+  function setCardOpen(card, open) {
+    card.classList.toggle('is-collapsed', !open);
+    const head = card.querySelector('.module-head, .preset-head');
+    if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function applyMobileCollapseBehavior() {
+    const cards = Array.from(content.querySelectorAll('.module-card, .preset-box'));
+    if (!cards.length) return;
+
+    cards.forEach((card, idx) => {
+      const head = card.querySelector('.module-head, .preset-head');
+      if (!head) return;
+
+      card.classList.add('collapsible-card');
+      const key = collapseKey(card, idx);
+      card.dataset.collapseKey = key;
+
+      if (!head.dataset.collapseBound) {
+        head.dataset.collapseBound = "1";
+        head.setAttribute('role', 'button');
+        head.setAttribute('tabindex', '0');
+
+        const toggle = () => {
+          if (!mobileCollapseMq.matches) return;
+          const k = card.dataset.collapseKey || key;
+          const nextOpen = card.classList.contains('is-collapsed');
+          moduleCollapseState[k] = nextOpen;
+          setCardOpen(card, nextOpen);
+        };
+
+        head.addEventListener('click', toggle);
+        head.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        });
+      }
+
+      if (!mobileCollapseMq.matches) {
+        setCardOpen(card, true);
+      } else {
+        const saved = moduleCollapseState[key];
+        const open = (saved === undefined) ? (idx === 0) : !!saved;
+        setCardOpen(card, open);
+      }
+    });
+  }
 
   function setTab(tab) {
     currentTab = tab;
@@ -1112,6 +1400,7 @@ function normalizeType(t) {
       else if (currentTab === 'sub') renderSub();
       else if (currentTab === 'mic') renderMic();
       else renderInfo();
+      applyMobileCollapseBehavior();
     } catch (e) {
       console.error(e);
       const st = document.getElementById("saveStatusText");
@@ -2233,6 +2522,12 @@ function normalizeType(t) {
   if (ENABLE_ESP_PULL) {
     pullStateFromEsp();
     setInterval(pullStateFromEsp, ESP_PULL_MS);
+  }
+
+  if (typeof mobileCollapseMq.addEventListener === "function") {
+    mobileCollapseMq.addEventListener("change", () => applyMobileCollapseBehavior());
+  } else if (typeof mobileCollapseMq.addListener === "function") {
+    mobileCollapseMq.addListener(() => applyMobileCollapseBehavior());
   }
 </script>
 </body>
