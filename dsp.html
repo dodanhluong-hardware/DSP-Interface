@@ -676,7 +676,7 @@ function normalizeType(t) {
              echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
              feedback: { q: 5.0, enable: true, thresh: 50, cut: 50, sens: 50, shift: 5, shiftEnable: true } },
     wifi:  { ssid: '', pass: '' },
-    system:{ marqueeMs: 12, audioDelayMs: 0, barsDelayMs: 20 },
+    system:{ marqueeMs: 12, audioDelayMs: 0, barsDelayMs: 20, barsMode: 5 },
     info:  ""
   };
 
@@ -722,6 +722,8 @@ function normalizeType(t) {
   appData.system.marqueeMs = Number(appData.system.marqueeMs ?? defaultData.system.marqueeMs);
   appData.system.audioDelayMs = Number(appData.system.audioDelayMs ?? defaultData.system.audioDelayMs);
   appData.system.barsDelayMs = Number(appData.system.barsDelayMs ?? defaultData.system.barsDelayMs);
+  appData.system.barsMode = Number(appData.system.barsMode ?? defaultData.system.barsMode);
+  appData.system.barsMode = Math.max(0, Math.min(10, Math.round(appData.system.barsMode)));
 
   function ensureChannel(key) {
     if (!appData[key] || typeof appData[key] !== "object") appData[key] = deepClone(defaultData[key]);
@@ -818,7 +820,8 @@ function normalizeType(t) {
       return {
         marqueeMs: Number(appData.system.marqueeMs),
         audioDelayMs: Number(appData.system.audioDelayMs),
-        barsDelayMs: Number(appData.system.barsDelayMs)
+        barsDelayMs: Number(appData.system.barsDelayMs),
+        barsMode: Number(appData.system.barsMode)
       };
     },
 
@@ -1068,7 +1071,11 @@ function normalizeType(t) {
     if (type === 'ch') {
       const target = appData[targetKey];
       if (data.bands) target.bands = deepClone(data.bands).map(b => ({...b, t: normalizeType(b.t)}));
-      if (data.loudness) target.loudness = { ...target.loudness, ...data.loudness };
+      if (data.loudness) {
+        // Keep current ENABLE state; preset updates only loudness shape params.
+        const keepOn = !!(target.loudness && target.loudness.on);
+        target.loudness = { ...target.loudness, ...data.loudness, on: keepOn };
+      }
   } else if (type === 'sub') {
       const target = appData.sub[targetKey];
       if (data.bands && Array.isArray(data.bands)) {
@@ -1479,7 +1486,7 @@ function normalizeType(t) {
       canvasWrap.appendChild(cvs);
       topRow.appendChild(canvasWrap);
 
-      // Place MONO/STEREO, INVERT PHASE, GAIN and DELAY in four rows next to the plot
+      // Place MONO/STEREO, INVERT PHASE and GAIN next to the plot
       const controlsColumn = document.createElement('div');
       controlsColumn.className = 'sub-controls-col';
       controlsColumn.style.marginTop = '0';
@@ -1550,14 +1557,6 @@ function normalizeType(t) {
       );
       gainControl.style.marginBottom = '0';
       levelSection.appendChild(gainControl);
-
-      const delayControl = createSlider('DELAY', data.delay, 0, 50, 0.5, 'ms',
-        v => { data.delay = v; markDirty(); },
-        () => Tx.mark('delay', 'live'),
-        () => Tx.mark('delay', 'final')
-      );
-      delayControl.style.marginBottom = '0';
-      levelSection.appendChild(delayControl);
 
       controlsColumn.appendChild(routeSection);
       controlsColumn.appendChild(levelSection);
@@ -1697,6 +1696,11 @@ function normalizeType(t) {
     ));
     sysRack.body.appendChild(createSlider('BAR CHART DELAY', sys.barsDelayMs, 5, 80, 1, 'ms',
       v => { appData.system.barsDelayMs = v; markDirty(); },
+      () => Tx.mark('system', 'live'),
+      () => Tx.mark('system', 'final')
+    ));
+    sysRack.body.appendChild(createSlider('BAR MODE', sys.barsMode, 0, 10, 1, '',
+      v => { appData.system.barsMode = v; markDirty(); },
       () => Tx.mark('system', 'live'),
       () => Tx.mark('system', 'final')
     ));
@@ -2112,6 +2116,7 @@ function normalizeType(t) {
     appData.system.marqueeMs = roundStep(numOr(appData.system.marqueeMs, data["log-marquee-ms"]), 1);
     appData.system.audioDelayMs = roundStep(numOr(appData.system.audioDelayMs, data["log-audio-delay-ms"]), 1);
     appData.system.barsDelayMs = roundStep(numOr(appData.system.barsDelayMs, data["log-bars-delay-ms"]), 1);
+    appData.system.barsMode = roundStep(numOr(appData.system.barsMode, data["log-bars-mode"]), 1);
 
     for (let i = 1; i <= 6; i++) {
       const li = i - 1;
