@@ -165,6 +165,18 @@
     .eq-plot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: #aa8; font-family: var(--font-head); }
     .eq-plot-head span:last-child { color: #776655; font-family: var(--font-main); font-size: 10px; }
     .eq-plot { width: 100%; height: 190px; display: block; border: 1px solid #22160f; background: #050303; touch-action: none; cursor: crosshair; }
+    .mic-mode-row { display: flex; gap: 6px; margin-bottom: 12px; background: #110500; border: 1px solid #442200; padding: 5px; border-radius: 4px; }
+    .mic-mode-btn { flex: 1; background: #221105; color: #776655; border: 1px solid #332211; padding: 8px 6px; font-family: var(--font-head); font-size: 11px; cursor: pointer; }
+    .mic-mode-btn.active { background: #331100; color: var(--indicator); border-color: var(--rust-accent); box-shadow: inset 0 0 8px rgba(255, 170, 0, 0.12); }
+    .mic-input-card { flex: 0 0 auto !important; }
+    .mic-input-card .module-body { flex: 0 0 auto; overflow-y: visible; }
+    .mic-input-card .eq-grid { flex: 0 0 auto; height: auto; }
+    .mic-simple-grid { min-height: 255px; }
+    .mic-simple-grid .eq-strip { min-height: 230px; }
+    .mic-graph-panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+    .mic-graph-panel .eq-plot-wrap { flex: 0 0 auto; margin-bottom: 0; }
+    .mic-graph-panel .eq-plot { flex: 0 0 auto; min-height: 190px; }
+    .mic-band-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .v-fader-track { width: 12px; flex: 1; min-height: 150px; background: #000; border: 1px solid #332211; position: relative; margin: 10px 0; touch-action: none; }
     .v-fader-cap { position: absolute; left: 50%; width: 36px; height: 24px; background: #553322; border: 1px solid #000; border-radius: 2px; transform: translate(-50%, 50%); z-index: 5; background-image: linear-gradient(to bottom, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
     .cap-sub .v-fader-cap { background-color: #661111; border-color: #992222; } .cap-mic .v-fader-cap { background-color: #333; border-color: #555; }
@@ -401,6 +413,9 @@
       }
       .sub-band-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .mic-band-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
       }
       .eq-strip {
         padding: 8px 2px;
@@ -901,7 +916,8 @@ function normalizeType(t) {
     left:  { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
     right: { bands: JSON.parse(JSON.stringify(GLOBAL_PRESETS.ch.flat.data.bands)), loudness: { on: true, thresh: -40, maxGain: 6.0, freq: 100 }, vol: 0, phase: false, delay: 0 },
     sub:   { sub1: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true, bands: [{t:'lowpass', f:90, g:0, q:0.707},{t:'peak', f:50, g:0, q:30}] }, sub2: { freq: 90, vol: 0, phase: false, delay: 0, isMono: true, bands: [{t:'lowpass', f:90, g:0, q:0.707},{t:'peak', f:50, g:0, q:30}] } },
-    mic:   { mic1: { tones: [0,0,0], vol: 80 }, mic2: { tones: [0,0,0], vol: 80 },
+    mic:   { mic1: { tones: [0,0,0], vol: 80, view: 'simple', bands: [{t:'lowshelf', f:120, g:0, q:0.8},{t:'peak', f:1000, g:0, q:1.2},{t:'highshelf', f:8000, g:0, q:0.8}] },
+             mic2: { tones: [0,0,0], vol: 80, view: 'simple', bands: [{t:'lowshelf', f:120, g:0, q:0.8},{t:'peak', f:1000, g:0, q:1.2},{t:'highshelf', f:8000, g:0, q:0.8}] },
              reverb: { ...GLOBAL_PRESETS.mic.karaoke.data.reverb },
              echo:   { ...GLOBAL_PRESETS.mic.karaoke.data.echo },
              feedback: { q: 5.0, enable: true, thresh: 50, cut: 50, sens: 50, shift: 5, shiftEnable: true } },
@@ -938,6 +954,47 @@ function normalizeType(t) {
   if (!appData.mic.mic2) appData.mic.mic2 = deepClone(defaultData.mic.mic2);
   if (!Array.isArray(appData.mic.mic1.tones)) appData.mic.mic1.tones = [0,0,0];
   if (!Array.isArray(appData.mic.mic2.tones)) appData.mic.mic2.tones = [0,0,0];
+  const MIC_FADER_BANDS = [
+    { t: 'lowshelf', f: 400,  q: 0.3 },
+    { t: 'peak',     f: 1000, q: 0.3 },
+    { t: 'highshelf',f: 3500, q: 0.3 }
+  ];
+
+  function fixedMicFaderBands(tones) {
+    const t = Array.isArray(tones) ? tones : [0,0,0];
+    return MIC_FADER_BANDS.map((b, i) => ({ ...b, g: Number(t[i] || 0) }));
+  }
+
+  function micTonePayload(mic) {
+    const t = Array.isArray(mic.tones) ? mic.tones : [0,0,0];
+    return {
+      lo: Number(t[0] || 0),
+      mi: Number(t[1] || 0),
+      hi: Number(t[2] || 0),
+      bands: (mic.view === 'graph') ? mic.bands : fixedMicFaderBands(t)
+    };
+  }
+
+  function ensureMicInput(key) {
+    const mic = appData.mic[key];
+    const base = defaultData.mic[key];
+    mic.vol = Number(mic.vol ?? base.vol);
+    mic.view = (mic.view === 'graph') ? 'graph' : 'simple';
+    if (!Array.isArray(mic.tones) || mic.tones.length !== 3) mic.tones = [0,0,0];
+    if (!Array.isArray(mic.bands) || mic.bands.length !== 3) {
+      mic.bands = deepClone(base.bands);
+    }
+    mic.bands = mic.bands.map((b, i) => {
+      const merged = { ...base.bands[i], ...(b || {}) };
+      merged.t = normalizeType(merged.t);
+      merged.f = Number(merged.f ?? base.bands[i].f);
+      merged.g = Number(merged.g ?? base.bands[i].g);
+      merged.q = Number(merged.q ?? base.bands[i].q);
+      return merged;
+    });
+  }
+  ensureMicInput('mic1');
+  ensureMicInput('mic2');
   if (!appData.mic.reverb) appData.mic.reverb = deepClone(defaultData.mic.reverb);
   if (!appData.mic.echo) appData.mic.echo = deepClone(defaultData.mic.echo);
   if (!appData.mic.feedback) appData.mic.feedback = deepClone(defaultData.mic.feedback);
@@ -1035,11 +1092,9 @@ function normalizeType(t) {
       };
     },
     micTone() {
-      const t1 = appData.mic.mic1.tones || [0,0,0];
-      const t2 = appData.mic.mic2.tones || [0,0,0];
       return {
-        mic1: { lo: Number(t1[0] || 0), mi: Number(t1[1] || 0), hi: Number(t1[2] || 0) },
-        mic2: { lo: Number(t2[0] || 0), mi: Number(t2[1] || 0), hi: Number(t2[2] || 0) }
+        mic1: micTonePayload(appData.mic.mic1),
+        mic2: micTonePayload(appData.mic.mic2)
       };
     },
     reverb() { return { ...appData.mic.reverb }; },
@@ -1252,7 +1307,13 @@ function normalizeType(t) {
   }
 
   function applyMobileCollapseBehavior() {
-    const cards = Array.from(content.querySelectorAll('.module-card, .preset-box'));
+    let cards;
+    if (currentTab === 'sub') {
+      // SUB tab: only collapse top-level Subwoofer A/B racks.
+      cards = Array.from(content.querySelectorAll('.sub-grid-two > .module-card'));
+    } else {
+      cards = Array.from(content.querySelectorAll('.module-card, .preset-box'));
+    }
     if (!cards.length) return;
 
     cards.forEach((card, idx) => {
@@ -1325,7 +1386,7 @@ function normalizeType(t) {
 
     const hint = document.createElement('div');
     hint.className = "preset-hint";
-    hint.innerText = "Chá»n preset Ä‘á»ƒ náº¡p nhanh thÃ´ng sá»‘.";
+    hint.innerText = "Chọn preset để nạp nhanh thông số.";
 
     const select = document.createElement('select');
     const defOpt = document.createElement('option');
@@ -1618,6 +1679,209 @@ function normalizeType(t) {
     content.appendChild(grid);
   }
 
+  function scheduleResponsivePlotDraw(canvas, drawFn) {
+    const run = () => {
+      if (!canvas || !canvas.isConnected) return;
+      drawFn();
+    };
+
+    requestAnimationFrame(run);
+    setTimeout(run, 60);
+    setTimeout(run, 220);
+
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => requestAnimationFrame(run));
+      ro.observe(canvas);
+      const wrap = canvas.parentElement;
+      if (wrap) ro.observe(wrap);
+      setTimeout(() => ro.disconnect(), 5000);
+    }
+  }
+
+  function renderMicInputBody(module, micObj, micNumber) {
+    const modeRow = document.createElement('div');
+    modeRow.className = 'mic-mode-row';
+
+    const simpleBtn = document.createElement('button');
+    simpleBtn.type = 'button';
+    simpleBtn.className = 'mic-mode-btn' + (micObj.view !== 'graph' ? ' active' : '');
+    simpleBtn.innerText = 'FADER';
+
+    const graphBtn = document.createElement('button');
+    graphBtn.type = 'button';
+    graphBtn.className = 'mic-mode-btn' + (micObj.view === 'graph' ? ' active' : '');
+    graphBtn.innerText = 'GRAPH';
+
+    simpleBtn.onclick = () => { micObj.view = 'simple'; save(); render(); };
+    graphBtn.onclick = () => { micObj.view = 'graph'; save(); render(); };
+
+    modeRow.appendChild(simpleBtn);
+    modeRow.appendChild(graphBtn);
+    module.body.appendChild(modeRow);
+
+    const sendMicToneLive  = () => Tx.mark('micTone', 'live');
+    const sendMicToneFinal = () => Tx.mark('micTone', 'final');
+
+    const sendMicGainLive  = () => Tx.mark('gain', 'live');
+    const sendMicGainFinal = () => Tx.mark('gain', 'final');
+
+    if (micObj.view !== 'graph') {
+      const r = document.createElement('div');
+      r.className = 'eq-grid mic-simple-grid';
+      r.style.gridTemplateColumns = 'repeat(4, 1fr)';
+
+      r.appendChild(createSimpleStrip(
+        'GAIN', micObj.vol,
+        v => { micObj.vol = v; markDirty(); },
+        sendMicGainLive,
+        sendMicGainFinal,
+        '', 0, 100, 1, '%', 'cap-mic'
+      ));
+
+      ['LO', 'MID', 'HI'].forEach((l, i) => r.appendChild(createSimpleStrip(
+        l, micObj.tones[i],
+        v => {
+          micObj.tones[i] = v;
+          markDirty();
+        },
+        sendMicToneLive,
+        sendMicToneFinal,
+        '', -15, 15, 1, 'dB', 'cap-mic'
+      )));
+
+      module.body.appendChild(r);
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.className = 'mic-graph-panel';
+
+    panel.appendChild(createSlider('GAIN', micObj.vol, 0, 100, 1, '%',
+      v => { micObj.vol = v; markDirty(); },
+      sendMicGainLive,
+      sendMicGainFinal
+    ));
+
+    const plotWrap = document.createElement('div');
+    plotWrap.className = 'eq-plot-wrap';
+    plotWrap.innerHTML = `<div class="eq-plot-head"><span>MIC ${micNumber} TONE RESPONSE</span><span>20Hz - 20kHz / 3 BAND</span></div>`;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'eq-plot';
+    plotWrap.appendChild(canvas);
+    panel.appendChild(plotWrap);
+
+    const bandGrid = document.createElement('div');
+    bandGrid.className = 'eq-grid mic-band-grid';
+
+    const updatePlot = () => drawEqResponse(canvas, micObj.bands, 48000);
+    const syncStripUI = (idx) => {
+      const strip = bandGrid.children[idx];
+      const band = micObj.bands[idx];
+      if (!strip || !band) return;
+
+      const inputs = strip.querySelectorAll('input');
+      const freqInput = inputs[0];
+      const gainInput = inputs[2];
+      if (freqInput) freqInput.value = String(Math.round(Number(band.f) || 0));
+      if (gainInput) gainInput.value = String(Math.round((Number(band.g) || 0) * 10) / 10);
+
+      const cap = strip.querySelector('.v-fader-cap');
+      if (cap) {
+        const pct = ((Number(band.g) || 0) + 15) / 30 * 100;
+        cap.style.bottom = `${clamp(pct, 0, 100)}%`;
+      }
+    };
+
+    micObj.bands.forEach((band, idx) => {
+      band.t = normalizeType(band.t);
+      const strip = createComplexStrip(
+        band,
+        idx,
+        () => {
+          markDirty();
+          updatePlot();
+        },
+        (isFinal) => Tx.mark('micTone', isFinal ? 'final' : 'live')
+      );
+      bandGrid.appendChild(strip);
+    });
+
+    panel.appendChild(bandGrid);
+    module.body.appendChild(panel);
+    scheduleResponsivePlotDraw(canvas, updatePlot);
+
+    let dragIdx = -1;
+    const hitRadius = 28;
+
+    const getCanvasPos = (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: clamp((evt.clientX - rect.left), 0, rect.width),
+        y: clamp((evt.clientY - rect.top), 0, rect.height),
+        w: rect.width,
+        h: rect.height
+      };
+    };
+
+    const pickBand = (x, y, w, h) => {
+      let best = -1;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < micObj.bands.length; i++) {
+        const b = micObj.bands[i];
+        const bx = eqFreqToX(b.f, w);
+        const by = eqDbToY(b.g, h);
+        const dx = bx - x;
+        const dy = by - y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist) {
+          bestDist = d2;
+          best = i;
+        }
+      }
+      return bestDist <= hitRadius * hitRadius ? best : -1;
+    };
+
+    const onMove = (evt) => {
+      if (dragIdx < 0) return;
+      const pos = getCanvasPos(evt);
+      const band = micObj.bands[dragIdx];
+      if (!band) return;
+
+      band.f = eqXToFreq(pos.x, pos.w);
+      band.g = Math.round(eqYToDb(pos.y, pos.h) * 10) / 10;
+      syncStripUI(dragIdx);
+      markDirty();
+      updatePlot();
+      Tx.mark('micTone', 'live');
+      evt.preventDefault();
+    };
+
+    const stopDrag = () => {
+      if (dragIdx < 0) return;
+      dragIdx = -1;
+      setDragScrollLock(false);
+      Tx.mark('micTone', 'final');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', stopDrag);
+    };
+
+    canvas.addEventListener('pointerdown', (evt) => {
+      const pos = getCanvasPos(evt);
+      const idx = pickBand(pos.x, pos.y, pos.w, pos.h);
+      if (idx < 0) return;
+      dragIdx = idx;
+      setDragScrollLock(true);
+      if (typeof canvas.setPointerCapture === 'function') {
+        canvas.setPointerCapture(evt.pointerId);
+      }
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', stopDrag);
+      window.addEventListener('pointercancel', stopDrag);
+      evt.preventDefault();
+    });
+  }
+
   function renderMic() {
     const grid = document.createElement('div');
     grid.className = 'grid-2col';
@@ -1631,6 +1895,8 @@ function normalizeType(t) {
 
     if (SHOW_ANTIFEEDBACK_UI) {
       const controlRack = createModule('ANTI-FEEDBACK', 'SUPPRESSOR');
+      controlRack.el.style.flex = '0 0 auto';
+      controlRack.body.style.overflowY = 'visible';
       const fbData = appData.mic.feedback;
 
       const fbBox2 = document.createElement('div');
@@ -1662,6 +1928,8 @@ function normalizeType(t) {
 
     const rev = appData.mic.reverb;
     const fxReverb = createModule('REVERB', 'SPACE FX');
+    fxReverb.el.style.flex = '0 0 auto';
+    fxReverb.body.style.overflowY = 'visible';
     fxReverb.body.appendChild(createSlider('LEVEL', rev.gain, 0, 100, 1, '%',
       v => { rev.gain = v; markDirty(); }, () => Tx.mark('reverb', 'live'), () => Tx.mark('reverb', 'final')
     ));
@@ -1684,6 +1952,8 @@ function normalizeType(t) {
 
     const echo = appData.mic.echo;
     const fxEcho = createModule('ECHO', 'DELAY FX');
+    fxEcho.el.style.flex = '0 0 auto';
+    fxEcho.body.style.overflowY = 'visible';
     fxEcho.body.appendChild(createSlider('LEVEL', echo.gain, 0, 100, 1, '%',
       v => { echo.gain = v; markDirty(); }, () => Tx.mark('echo', 'live'), () => Tx.mark('echo', 'final')
     ));
@@ -1704,39 +1974,13 @@ function normalizeType(t) {
     colEq.style.display = 'flex';
     colEq.style.flexDirection = 'column';
     colEq.style.gap = '20px';
-    colEq.style.height = '100%';
+    colEq.style.height = 'auto';
 
     [1, 2].forEach(n => {
-      const m = createModule(`MIC INPUT ${n}`, `PREAMP CH${n}`, 'module-fill');
+      const m = createModule(`MIC INPUT ${n}`, `PREAMP CH${n}`);
+      m.el.classList.add('mic-input-card');
       const micObj = appData.mic[`mic${n}`];
-
-      const sendMicToneLive  = () => Tx.mark('micTone', 'live');
-      const sendMicToneFinal = () => Tx.mark('micTone', 'final');
-
-      const sendMicGainLive  = () => Tx.mark('gain', 'live');
-      const sendMicGainFinal = () => Tx.mark('gain', 'final');
-
-      const r = document.createElement('div');
-      r.className = 'eq-grid';
-      r.style.gridTemplateColumns = 'repeat(4, 1fr)';
-
-      r.appendChild(createSimpleStrip(
-        'GAIN', micObj.vol,
-        v => { micObj.vol = v; markDirty(); },
-        sendMicGainLive,
-        sendMicGainFinal,
-        '', 0, 100, 1, '%', 'cap-mic'
-      ));
-
-      ['LO', 'MID', 'HI'].forEach((l, i) => r.appendChild(createSimpleStrip(
-        l, micObj.tones[i],
-        v => { micObj.tones[i] = v; markDirty(); },
-        sendMicToneLive,
-        sendMicToneFinal,
-        '', -15, 15, 1, 'dB', 'cap-mic'
-      )));
-
-      m.body.appendChild(r);
+      renderMicInputBody(m, micObj, n);
       colEq.appendChild(m.el);
     });
 
